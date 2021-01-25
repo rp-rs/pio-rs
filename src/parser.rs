@@ -10,12 +10,8 @@ mod pio {
     include!(concat!(env!("OUT_DIR"), "/pio.rs"));
 }
 
-#[derive(Debug)]
-#[doc(hidden)]
-pub enum Line<'input> {
-    Instruction(ParsedInstruction<'input>),
-    Label(&'input str),
-}
+// FIXME: these structs should all be pub(crate), but
+// https://github.com/lalrpop/lalrpop/pull/485
 
 #[derive(Debug)]
 #[doc(hidden)]
@@ -34,7 +30,7 @@ impl<'i> Value<'i> {
     fn reify(&self, state: &ParseState) -> i32 {
         match self {
             Value::I32(v) => *v,
-            Value::Symbol(s) => state.labels[s.to_owned()] as i32,
+            Value::Symbol(s) => state.defines[s.to_owned()] as i32,
             Value::Add(a, b) => a.reify(state) + b.reify(state),
             Value::Sub(a, b) => a.reify(state) - b.reify(state),
             Value::Mul(a, b) => a.reify(state) * b.reify(state),
@@ -43,6 +39,31 @@ impl<'i> Value<'i> {
             Value::Rev(a) => a.reify(state).reverse_bits(),
         }
     }
+}
+
+#[derive(Debug)]
+#[doc(hidden)]
+pub enum Line<'input> {
+    Directive(ParsedDirective<'input>),
+    Instruction(ParsedInstruction<'input>),
+    Label(&'input str),
+}
+
+#[derive(Debug)]
+#[doc(hidden)]
+pub enum ParsedDirective<'input> {
+    Program(&'input str),
+    SideSet {
+        value: Value<'input>,
+        opt: bool,
+        pindirs: bool,
+    },
+    WrapTarget,
+    Wrap,
+    Define {
+        name: &'input str,
+        value: Value<'input>,
+    },
 }
 
 #[derive(Debug)]
@@ -166,7 +187,10 @@ impl<'i> ParsedOperands<'i> {
 
 #[derive(Debug)]
 struct ParseState {
-    labels: HashMap<String, usize>,
+    defines: HashMap<String, i32>,
+    side_set_size: u8,
+    side_set_opt: bool,
+    side_set_pindirs: bool,
 }
 
 #[derive(Debug)]
@@ -181,15 +205,48 @@ impl Program {
         match pio::ProgramParser::new().parse(s) {
             Ok(p) => {
                 let mut state = ParseState {
-                    labels: HashMap::new(),
+                    defines: HashMap::new(),
+                    side_set_size: 0,
+                    side_set_opt: false,
+                    side_set_pindirs: false,
                 };
-                for (i, line) in p.iter().enumerate() {
-                    if let Line::Label(name) = line {
-                        state.labels.insert(name.to_string(), i);
+
+                // first pass
+                //   - resolve labels
+                //   - resolve defines
+                //   - read side_set settings
+                let mut instr_index = 0;
+                for line in &p {
+                    match line {
+                        Line::Instruction(..) => {
+                            instr_index += 1;
+                        }
+                        Line::Label(name) => {
+                            state.defines.insert(name.to_string(), instr_index as i32);
+                        }
+                        Line::Directive(d) => match d {
+                            ParsedDirective::SideSet {
+                                value,
+                                opt,
+                                pindirs,
+                            } => {
+                                assert!(instr_index == 0);
+                                state.side_set_size = value.reify(&state) as u8;
+                                state.side_set_opt = *opt;
+                                state.side_set_pindirs = *pindirs;
+                            }
+                            ParsedDirective::Define { name, value } => {
+                                state.defines.insert(name.to_string(), value.reify(&state));
+                            }
+                            _ => {}
+                        },
                     }
                 }
 
                 let mut a = crate::Assembler::new();
+
+                // second pass
+                //   - emit instructions
                 for line in p {
                     if let Line::Instruction(i) = line {
                         a.instructions.push(i.reify(&state));
@@ -205,12 +262,16 @@ impl Program {
 
 #[test]
 fn test() {
-    let p = Program::parse("
+    let p = Program::parse(
+        "
+    .program test
+
     label:
       pull
       out pins, 1
       jmp label
-    ")
+    ",
+    )
     .unwrap();
 
     assert_eq!(

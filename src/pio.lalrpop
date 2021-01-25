@@ -13,6 +13,7 @@ use crate::{
   parser::{
     Line,
     Value,
+    ParsedDirective,
     ParsedInstruction,
     ParsedOperands,
   },
@@ -20,32 +21,43 @@ use crate::{
 
 grammar();
 
-pub Program = <Line*>;
+pub(crate) Program = <Line*>;
 
 Line: Line<'input> = {
-  // Directive => Line::Directive,
+  <d:Directive> => Line::Directive(d),
   <l:Label> => Line::Label(l),
   <i:Instruction> => Line::Instruction(i),
 };
 
-Directive = {
-  "a",
+Directive: ParsedDirective<'input> = {
+  ".program" <s:Symbol> => ParsedDirective::Program(s),
+  ".side_set" <v:Value> <o:"opt"?> <p:"pindirs"?> => ParsedDirective::SideSet {
+    value: v,
+    opt: o.is_some(),
+    pindirs: p.is_some(),
+  },
+  ".wrap_target" => ParsedDirective::WrapTarget,
+  ".wrap" => ParsedDirective::Wrap,
+  ".define" "public"? <s:Symbol> <e:Expression> => ParsedDirective::Define {
+    name: s,
+    value: e,
+  },
 };
 
 Label: &'input str = <s:Symbol> ":" => s;
 
 Instruction: ParsedInstruction<'input> = {
-  <o:BaseInstruction> <s:Sideset> <d:Delay> => ParsedInstruction {
+  <o:BaseInstruction> <s:SideSet> <d:Delay> => ParsedInstruction {
     operands: o,
     side_set: s,
     delay: d,
   },
-  <o:BaseInstruction> <d:Delay> <s:Sideset> => ParsedInstruction {
+  <o:BaseInstruction> <d:Delay> <s:SideSet> => ParsedInstruction {
     operands: o,
     side_set: s,
     delay: d,
   },
-  <o:BaseInstruction> <s:Sideset> => ParsedInstruction {
+  <o:BaseInstruction> <s:SideSet> => ParsedInstruction {
     operands: o,
     side_set: s,
     delay: Value::I32(0),
@@ -195,7 +207,7 @@ SetDestination: SetDestination = {
   "pindirs" => SetDestination::PINDIRS,
 };
 
-Sideset: Value<'input> = "side" <v:Value> => v;
+SideSet: Value<'input> = "side" <v:Value> => v;
 Delay: Value<'input> = "[" <e:Expression> "]" => e;
 
 LabelledInstruction = {
@@ -228,4 +240,8 @@ ExprNotMul: Value<'input> = {
 
 Symbol = r"[a-z]+";
 
-Int: Value<'input> = <s:r"[0-9]+"> => Value::I32(i32::from_str(s).unwrap());
+Int: Value<'input> = {
+  <s:r"[0-9]+"> => Value::I32(i32::from_str(s).unwrap()),
+  <s:r"0b[01]+"> => Value::I32(i32::from_str_radix(s, 2).unwrap()),
+  <s:r"0x[0-9a-fA-F]+"> => Value::I32(i32::from_str_radix(s, 16).unwrap()),
+};
