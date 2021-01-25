@@ -17,8 +17,10 @@
 //! let program = a.assemble();
 //! ```
 
-// PIO byte grouping is 3/5/3/5
+// PIO instr grouping is 3/5/3/5
 #![allow(clippy::unusual_byte_groupings)]
+
+pub mod parser;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -125,7 +127,7 @@ pub enum SetDestination {
 }
 
 #[derive(Debug)]
-pub enum InstructionOperands {
+enum InstructionOperands {
     JMP {
         condition: JmpCondition,
         address: u8,
@@ -226,7 +228,7 @@ impl InstructionOperands {
 }
 
 #[derive(Debug)]
-struct Instruction {
+pub(crate) struct Instruction {
     operands: InstructionOperands,
     delay: u8,
     side_set: u8,
@@ -262,7 +264,7 @@ impl Drop for Label {
 
 /// A PIO Assembler. See chapter three of the [RP2040 Datasheet][].
 ///
-/// [RP2040 Datasheet]: https://datasheets.raspberrypi.org/rp2040/rp2040_datasheet.pdf.
+/// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
 pub struct Assembler {
     instructions: Vec<Instruction>,
 }
