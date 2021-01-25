@@ -12,8 +12,13 @@
 //! a.bind(&mut loop_label);
 //! a.pull(false, false);
 //! a.out(pio::OutDestination::PINS, 1);
-//! a.jmp(&mut loop_label);
+//! a.jmp(pio::JmpCondition::Always, &mut loop_label);
+//!
+//! let program = a.assemble();
 //! ```
+
+// PIO byte grouping is 3/5/3/5
+#![allow(clippy::unusual_byte_groupings)]
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
