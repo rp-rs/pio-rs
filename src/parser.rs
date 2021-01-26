@@ -70,7 +70,7 @@ pub enum ParsedDirective<'input> {
 #[doc(hidden)]
 pub struct ParsedInstruction<'input> {
     operands: ParsedOperands<'input>,
-    side_set: Value<'input>,
+    side_set: Option<Value<'input>>,
     delay: Value<'input>,
 }
 
@@ -78,7 +78,10 @@ impl<'i> ParsedInstruction<'i> {
     fn reify(&self, state: &ParseState) -> Instruction {
         Instruction {
             operands: self.operands.refiy(state),
-            side_set: self.side_set.reify(state) as u8,
+            side_set: match &self.side_set {
+                Some(s) => Some(s.reify(state) as u8),
+                None => None,
+            },
             delay: self.delay.reify(state) as u8,
         }
     }
@@ -225,6 +228,7 @@ impl Program {
                             state.defines.insert(name.to_string(), instr_index as i32);
                         }
                         Line::Directive(d) => match d {
+                            // TODO: support multiple programs using ParsedDirective::Program
                             ParsedDirective::SideSet {
                                 value,
                                 opt,
@@ -244,6 +248,7 @@ impl Program {
                 }
 
                 let mut a = crate::Assembler::new();
+                a.set_sideset(state.side_set_opt, state.side_set_size);
 
                 // second pass
                 //   - emit instructions
@@ -281,6 +286,32 @@ fn test() {
             0b100_00000_101_00000, // PULL
             0b011_00000_000_00001, // OUT PINS, 1
             0b000_00000_000_00000, // JMP LABEL
+        ]
+    );
+}
+
+#[test]
+fn test_side_set() {
+    let p = Program::parse(
+        "
+    .program test
+    .side_set 1 opt
+
+    label:
+      pull
+      out pins, 1
+      jmp label side 1
+    ",
+    )
+    .unwrap();
+
+    assert_eq!(
+        p.code,
+        &[
+            // LABEL:
+            0b100_00000_101_00000, // PULL
+            0b011_00000_000_00001, // OUT PINS, 1
+            0b000_11000_000_00000, // JMP LABEL, SIDE 1
         ]
     );
 }

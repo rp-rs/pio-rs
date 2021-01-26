@@ -231,13 +231,35 @@ impl InstructionOperands {
 pub(crate) struct Instruction {
     operands: InstructionOperands,
     delay: u8,
-    side_set: u8,
+    side_set: Option<u8>,
 }
 
 impl Instruction {
-    fn encode(&self) -> u16 {
+    fn encode(&self, a: &Assembler) -> u16 {
         let mut data = self.operands.encode();
-        data |= (self.delay as u16) << 8;
+
+        if self.delay > a.delay_max {
+            panic!("delay limit is {}", a.delay_max);
+        }
+
+        let side_set = if let Some(s) = self.side_set {
+            if s > a.side_set_max {
+                panic!("'side' set must be >=0 and <={}", a.side_set_max);
+            }
+            let s = (s as u16) << (5 - a.side_set_bits);
+            if a.side_set_opt {
+                s | 0b10000
+            } else {
+                s
+            }
+        } else if a.side_set_bits > 0 && !a.side_set_opt {
+            panic!("instruction requires 'side' set");
+        } else {
+            0
+        };
+
+        data |= ((self.delay as u16) | side_set) << 8;
+
         data
     }
 }
@@ -267,6 +289,10 @@ impl Drop for Label {
 /// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
 pub struct Assembler {
     instructions: Vec<Instruction>,
+    side_set_opt: bool,
+    side_set_max: u8,
+    side_set_bits: u8,
+    delay_max: u8,
 }
 
 impl Assembler {
@@ -275,11 +301,26 @@ impl Assembler {
     pub fn new() -> Assembler {
         Assembler {
             instructions: Vec::new(),
+            side_set_opt: false,
+            side_set_max: 0,
+            side_set_bits: 0,
+            delay_max: 31,
         }
     }
 
+    pub fn set_sideset(&mut self, opt: bool, mut bits: u8) {
+        self.side_set_opt = opt;
+        self.side_set_max = (1 << bits) - 1;
+        if opt {
+            bits += 1;
+        }
+        self.side_set_bits = bits;
+        self.delay_max = (1 << (5 - self.side_set_bits)) - 1;
+    }
+
+    /// Assemble the program into PIO instructions.
     pub fn assemble(self) -> Vec<u16> {
-        self.instructions.iter().map(|i| i.encode()).collect()
+        self.instructions.iter().map(|i| i.encode(&self)).collect()
     }
 }
 
@@ -331,14 +372,11 @@ macro_rules! instr_impl {
 
 macro_rules! instr {
     ( $(#[$inner:ident $($args:tt)*])* $name:ident ( $self:ident, $( $arg_name:ident : $arg_ty:ty ),* ) $body:expr ) => {
-        instr_impl!($(#[$inner $($args)*])* $name ( $self, $( $arg_name: $arg_ty ),* ) $body, 0, 0 );
+        instr_impl!($(#[$inner $($args)*])* $name ( $self, $( $arg_name: $arg_ty ),* ) $body, 0, None );
         paste::paste! {
-            instr_impl!($(#[$inner $($args)*])* [< $name _with_delay >] ( $self, $( $arg_name: $arg_ty ),* , delay: u8 ) $body, delay, 0 );
-            // TODO: side_set support
-            /*
-            instr_impl!($(#[$inner $($args)*])* [< $name _with_side_set >] ( $self, $( $arg_name: $arg_ty ),* , side_set: u8 ) $body, 0, side_set );
-            instr_impl!($(#[$inner $($args)*])* [< $name _with_delay_and_side_set >] ( $self, $( $arg_name: $arg_ty ),* , delay: u8, side_set: u8 ) $body, delay, side_set );
-            */
+            instr_impl!($(#[$inner $($args)*])* [< $name _with_delay >] ( $self, $( $arg_name: $arg_ty ),* , delay: u8 ) $body, delay, None );
+            instr_impl!($(#[$inner $($args)*])* [< $name _with_side_set >] ( $self, $( $arg_name: $arg_ty ),* , side_set: u8 ) $body, 0, Some(side_set) );
+            instr_impl!($(#[$inner $($args)*])* [< $name _with_delay_and_side_set >] ( $self, $( $arg_name: $arg_ty ),* , delay: u8, side_set: u8 ) $body, delay, Some(side_set) );
         }
     }
 }
@@ -489,22 +527,27 @@ fn test_jump_2() {
 }
 
 macro_rules! instr_test {
-    ($name:ident ( $( $v:expr ),* ) , $b:expr) => {
+    ($name:ident ( $( $v:expr ),* ) , $b:expr, $a_name:ident, $init:expr) => {
         paste::paste! {
             #[test]
             fn [< test _ $name _ $b >]() {
-                let mut a = Assembler::new();
-                a.$name(
+                let mut $a_name = Assembler::new();
+                $init;
+                $a_name.$name(
                     $( $v ),*
                 );
-                let a = a.assemble()[0];
+                let a = $a_name.assemble()[0];
                 let b = $b;
                 if a != b {
                     panic!("assertion failure: (left == right)\nleft:  {:#016b}\nright: {:#016b}", a, b);
                 }
             }
         }
-    }
+    };
+
+    ($name:ident ( $( $v:expr ),* ) , $b:expr) => {
+        instr_test!( $name ( $( $v ),* ), $b, a, {} );
+    };
 }
 
 instr_test!(wait(0, WaitSource::IRQ, 10), 0b001_00000_010_01010);
@@ -512,6 +555,14 @@ instr_test!(wait(1, WaitSource::IRQ, 15), 0b001_00000_110_01111);
 instr_test!(
     wait_with_delay(0, WaitSource::IRQ, 10, 30),
     0b001_11110_010_01010
+);
+instr_test!(
+    wait_with_side_set(0, WaitSource::IRQ, 10, 0b10101),
+    0b001_10101_010_01010,
+    a,
+    {
+        a.set_sideset(false, 5);
+    }
 );
 
 instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);

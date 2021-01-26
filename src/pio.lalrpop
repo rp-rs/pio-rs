@@ -49,27 +49,27 @@ Label: &'input str = <s:Symbol> ":" => s;
 Instruction: ParsedInstruction<'input> = {
   <o:BaseInstruction> <s:SideSet> <d:Delay> => ParsedInstruction {
     operands: o,
-    side_set: s,
+    side_set: Some(s),
     delay: d,
   },
   <o:BaseInstruction> <d:Delay> <s:SideSet> => ParsedInstruction {
     operands: o,
-    side_set: s,
+    side_set: Some(s),
     delay: d,
   },
   <o:BaseInstruction> <s:SideSet> => ParsedInstruction {
     operands: o,
-    side_set: s,
+    side_set: Some(s),
     delay: Value::I32(0),
   },
   <o:BaseInstruction> <d:Delay> => ParsedInstruction {
     operands: o,
-    side_set: Value::I32(0),
+    side_set: None,
     delay: d,
   },
   <o:BaseInstruction> => ParsedInstruction {
     operands: o,
-    side_set: Value::I32(0),
+    side_set: None,
     delay: Value::I32(0),
   },
 };
