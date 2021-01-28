@@ -298,6 +298,12 @@ impl Program {
     }
 }
 
+impl Program {
+    pub fn code(&self) -> &[u16] {
+        &self.code
+    }
+}
+
 #[test]
 fn test() {
     let p = Program::parse_program(

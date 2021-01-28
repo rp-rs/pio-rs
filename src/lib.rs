@@ -204,7 +204,7 @@ impl InstructionOperands {
             InstructionOperands::OUT {
                 destination,
                 bit_count,
-            } => (*destination as u8, *bit_count),
+            } => (*destination as u8, *bit_count & 0b11111),
             InstructionOperands::PUSH { if_full, block } => {
                 ((*if_full as u8) << 1 | (*block as u8), 0)
             }

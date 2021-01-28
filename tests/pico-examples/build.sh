@@ -2,5 +2,6 @@
 
 for filename in ./*.pio; do
   echo "building $filename"
-  pioasm -o hex $filename "./${filename%.*}.hex"
+  output=$(pioasm -o hex $filename)
+  test "$output" && echo "$output" > "./${filename%.*}.hex"
 done
