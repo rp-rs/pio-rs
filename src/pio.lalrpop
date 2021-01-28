@@ -32,7 +32,7 @@ match {
 }
 
 // for parsing a .pio file
-pub(crate) File = <ProgramWithDirective*>;
+pub(crate) File = <DefineDirective*> <ProgramWithDirective*>;
 
 ProgramWithDirective = ".program" Symbol <Program>;
 
@@ -53,11 +53,13 @@ Directive: ParsedDirective<'input> = {
   },
   ".wrap_target" => ParsedDirective::WrapTarget,
   ".wrap" => ParsedDirective::Wrap,
-  ".define" "public"? <s:Symbol> <e:Expression> => ParsedDirective::Define {
-    name: s,
-    value: e,
-  },
+  DefineDirective,
   <l:LANG_OPT> => ParsedDirective::LangOpt(l),
+};
+
+DefineDirective: ParsedDirective<'input> = ".define" "public"? <s:Symbol> <e:Expression> => ParsedDirective::Define {
+  name: s,
+  value: e,
 };
 
 Label: &'input str = "public"? <s:Symbol> ":" => s;

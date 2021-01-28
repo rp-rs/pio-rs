@@ -6,11 +6,11 @@ edition = "2018"
 
 [dependencies]
 paste = "1.0"
-lalrpop-util = { git = "https://github.com/devsnek/lalrpop.git", branch = "better" }
+lalrpop-util = { git = "https://github.com/lalrpop/lalrpop.git", rev = "a8afe7d" }
 hashbrown = "0.9"
 
 [build-dependencies]
-lalrpop = { git = "https://github.com/devsnek/lalrpop.git", branch = "better" }
+lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", rev = "a8afe7d" }
 
 [dev-dependencies]
 test-generator = "0.3.0"

@@ -199,15 +199,25 @@ struct FileState {
 #[derive(Debug)]
 struct ProgramState<'a> {
     file_state: &'a mut FileState,
-    labels: HashMap<String, i32>,
+    defines: HashMap<String, i32>,
     side_set_size: u8,
     side_set_opt: bool,
     side_set_pindirs: bool,
 }
 
 impl<'a> ProgramState<'a> {
+    fn new(file_state: &'a mut FileState) -> Self {
+        ProgramState {
+            file_state,
+            defines: HashMap::new(),
+            side_set_size: 0,
+            side_set_opt: false,
+            side_set_pindirs: false,
+        }
+    }
+
     fn resolve(&self, name: &str) -> i32 {
-        match self.labels.get(name) {
+        match self.defines.get(name) {
             Some(v) => *v,
             None => self.file_state.defines[name],
         }
@@ -222,16 +232,34 @@ pub struct Program {
 type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;
 
 impl Program {
+    /// Parse a PIO "file", which contains some number of PIO programs
+    /// separated by `.program` directives.
     pub fn parse_file(source: &str) -> Result<Vec<Self>, ParseError> {
         match pio::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
-                Ok(f.iter().map(|p| Program::process(p, &mut state)).collect())
+
+                // set up global defines
+                let fake_prog_state = ProgramState::new(&mut state);
+                for d in f.0 {
+                    if let ParsedDirective::Define { name, value } = d {
+                        fake_prog_state
+                            .file_state
+                            .defines
+                            .insert(name.to_string(), value.reify(&fake_prog_state));
+                    }
+                }
+
+                Ok(f.1
+                    .iter()
+                    .map(|p| Program::process(p, &mut state))
+                    .collect())
             }
             Err(e) => Err(e),
         }
     }
 
+    /// Parse a single PIO program, without the `.program` directive.
     pub fn parse_program(source: &str) -> Result<Self, ParseError> {
         match pio::ProgramParser::new().parse(source) {
             Ok(p) => Ok(Program::process(&p, &mut FileState::default())),
@@ -240,13 +268,7 @@ impl Program {
     }
 
     fn process(p: &[Line], file_state: &mut FileState) -> Self {
-        let mut state = ProgramState {
-            file_state,
-            labels: HashMap::new(),
-            side_set_size: 0,
-            side_set_opt: false,
-            side_set_pindirs: false,
-        };
+        let mut state = ProgramState::new(file_state);
 
         // first pass
         //   - resolve labels
@@ -259,7 +281,7 @@ impl Program {
                     instr_index += 1;
                 }
                 Line::Label(name) => {
-                    state.labels.insert(name.to_string(), instr_index as i32);
+                    state.defines.insert(name.to_string(), instr_index as i32);
                 }
                 Line::Directive(d) => match d {
                     // TODO: support multiple programs using ParsedDirective::Program
@@ -274,18 +296,17 @@ impl Program {
                         state.side_set_pindirs = *pindirs;
                     }
                     ParsedDirective::Define { name, value } => {
-                        state
-                            .file_state
-                            .defines
-                            .insert(name.to_string(), value.reify(&state));
+                        state.defines.insert(name.to_string(), value.reify(&state));
                     }
                     _ => {}
                 },
             }
         }
 
-        let mut a = crate::Assembler::new();
-        a.set_sideset(state.side_set_opt, state.side_set_size);
+        let mut a = crate::Assembler::new_with_side_set(crate::SideSet::new(
+            state.side_set_opt,
+            state.side_set_size,
+        ));
 
         // second pass
         //   - emit instructions
@@ -300,6 +321,7 @@ impl Program {
 }
 
 impl Program {
+    /// Get the assembled code of this program.
     pub fn code(&self) -> &[u16] {
         &self.code
     }
