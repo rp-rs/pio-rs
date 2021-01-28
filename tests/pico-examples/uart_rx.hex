@@ -1,0 +1,15 @@
+.program uart_rx_mini
+2020
+ea27
+4001
+0642
+.program uart_rx
+2020
+ea27
+4001
+0642
+00c8
+c014
+20a0
+0000
+8020

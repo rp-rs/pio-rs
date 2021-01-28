@@ -1,35 +1,32 @@
 use pio::parser::Program;
 
-#[test]
-fn test() -> Result<(), Box<dyn std::error::Error>> {
-    let mut d = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    d.push("tests/pico-examples");
+#[macro_use]
+extern crate pretty_assertions;
 
-    for entry in std::fs::read_dir(d)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.to_str().unwrap().ends_with(".pio") {
-            continue;
+#[test_generator::test_resources("tests/pico-examples/*.pio")]
+fn test(test: &str) {
+    let path = std::path::PathBuf::from(test);
+    let program_source = std::fs::read_to_string(&path).unwrap();
+    let programs = Program::parse_file(&program_source).unwrap();
+
+    let mut hex_path = path;
+    hex_path.set_extension("hex");
+
+    if let Ok(hex_source) = std::fs::read_to_string(hex_path) {
+        let mut hex_programs = vec![];
+        for line in hex_source.lines() {
+            if line.starts_with(".program") {
+                hex_programs.push(vec![]);
+            } else {
+                hex_programs
+                    .last_mut()
+                    .unwrap()
+                    .push(u16::from_str_radix(line, 16).unwrap());
+            }
         }
 
-        println!("testing {:?}", path);
-
-        let program_source = std::fs::read_to_string(&path)?;
-        let p = Program::parse_file(&program_source).unwrap().swap_remove(0);
-
-        let mut hex_path = path.clone();
-        hex_path.set_extension("hex");
-
-        // FIXME: `pioasm` doesn't support emitting hex for multiple
-        // programs in one file, so multi-program files are never
-        // tested for correct instruction emit here.
-        if let Ok(hex_source) = std::fs::read_to_string(hex_path) {
-            let hex: Vec<u16> = hex_source
-                .lines()
-                .map(|l| u16::from_str_radix(l, 16).unwrap())
-                .collect();
-            assert_eq!(p.code(), hex);
+        for (i, h) in hex_programs.iter().enumerate() {
+            assert_eq!(programs[i].code(), h);
         }
     }
-    Ok(())
 }

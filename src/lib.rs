@@ -221,10 +221,15 @@ impl InstructionOperands {
                 wait,
                 index,
                 relative,
-            } => (
-                (*clear as u8) << 1 | (*wait as u8),
-                *index | if *relative { 1 << 5 } else { 0 },
-            ),
+            } => {
+                if *index > 7 {
+                    panic!("invalid interrupt flags");
+                }
+                (
+                    (*clear as u8) << 1 | (*wait as u8),
+                    *index | (if *relative { 0b10000 } else { 0 }),
+                )
+            }
             InstructionOperands::SET { destination, data } => (*destination as u8, *data),
         }
     }
@@ -597,7 +602,7 @@ instr_test!(
     0b101_00000_010_10101
 );
 
-instr_test!(irq(true, false, 10, false), 0b110_00000_010_01010);
-instr_test!(irq(false, true, 15, true), 0b110_00000_001_01111);
+instr_test!(irq(true, false, 0b11, false), 0b110_00000_010_00011);
+instr_test!(irq(false, true, 0b111, true), 0b110_00000_001_10111);
 
 instr_test!(set(SetDestination::Y, 10), 0b111_00000_010_01010);

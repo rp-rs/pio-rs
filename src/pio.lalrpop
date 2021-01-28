@@ -26,7 +26,7 @@ match {
   r"\s*" => {}, // ignore whitespace
   r";[^\n\r]*[\n\r]*" => {}, // ignore `;` comments
   r"% c-sdk \{[^%]*%}" => {}, // ignore `% c-sdk { ... }`
-  r"\.lang_opt [^\n\r]*" => {}, // ignore `.lang_opt` directives
+  r"\.lang_opt [^\n\r]*" => LANG_OPT, // lex `.lang_opt` directives
 } else {
   _
 }
@@ -57,6 +57,7 @@ Directive: ParsedDirective<'input> = {
     name: s,
     value: e,
   },
+  <l:LANG_OPT> => ParsedDirective::LangOpt(l),
 };
 
 Label: &'input str = "public"? <s:Symbol> ":" => s;

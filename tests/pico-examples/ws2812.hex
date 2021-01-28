@@ -1,0 +1,10 @@
+.program ws2812
+6221
+1123
+1400
+a442
+.program ws2812_parallel
+6020
+a10b
+a401
+a103

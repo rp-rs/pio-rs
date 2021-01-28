@@ -11,3 +11,7 @@ hashbrown = "0.9"
 
 [build-dependencies]
 lalrpop = { git = "https://github.com/devsnek/lalrpop.git", branch = "better" }
+
+[dev-dependencies]
+test-generator = "0.3.0"
+pretty_assertions = "0.6"

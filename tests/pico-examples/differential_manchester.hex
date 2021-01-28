@@ -1,0 +1,20 @@
+.program differential_manchester_tx
+7821
+0623
+1700
+0704
+7021
+0627
+1f04
+0700
+.program differential_manchester_rx
+2ba0
+00c4
+4021
+0000
+4141
+2b20
+00c9
+4041
+0000
+4121

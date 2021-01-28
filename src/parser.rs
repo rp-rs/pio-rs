@@ -61,6 +61,7 @@ pub(crate) enum ParsedDirective<'input> {
         name: &'input str,
         value: Value<'input>,
     },
+    LangOpt(&'input str),
 }
 
 #[derive(Debug)]
@@ -221,7 +222,7 @@ pub struct Program {
 type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;
 
 impl Program {
-    pub fn parse_file<'input>(source: &'input str) -> Result<Vec<Self>, ParseError<'input>> {
+    pub fn parse_file(source: &str) -> Result<Vec<Self>, ParseError> {
         match pio::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
@@ -231,14 +232,14 @@ impl Program {
         }
     }
 
-    pub fn parse_program<'input>(source: &'input str) -> Result<Self, ParseError<'input>> {
+    pub fn parse_program(source: &str) -> Result<Self, ParseError> {
         match pio::ProgramParser::new().parse(source) {
             Ok(p) => Ok(Program::process(&p, &mut FileState::default())),
             Err(e) => Err(e),
         }
     }
 
-    fn process<'input>(p: &[Line<'input>], file_state: &mut FileState) -> Self {
+    fn process(p: &[Line], file_state: &mut FileState) -> Self {
         let mut state = ProgramState {
             file_state,
             labels: HashMap::new(),

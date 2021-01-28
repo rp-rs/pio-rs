@@ -1,0 +1,14 @@
+.program manchester_tx
+b542
+1b04
+bd42
+b342
+6021
+0022
+.program manchester_rx
+2020
+4841
+00c0
+20a0
+4821
+00c0
