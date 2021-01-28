@@ -22,6 +22,21 @@ use crate::{
 
 grammar();
 
+match {
+  r"\s*" => {}, // ignore whitespace
+  r";[^\n\r]*[\n\r]*" => {}, // ignore `;` comments
+  r"% c-sdk \{[^%]*%}" => {}, // ignore `% c-sdk { ... }`
+  r"\.lang_opt [^\n\r]*" => {}, // ignore `.lang_opt` directives
+} else {
+  _
+}
+
+// for parsing a .pio file
+pub(crate) File = <ProgramWithDirective*>;
+
+ProgramWithDirective = ".program" Symbol <Program>;
+
+// for parsing macro input
 pub(crate) Program = <Line*>;
 
 Line: Line<'input> = {
@@ -31,7 +46,6 @@ Line: Line<'input> = {
 };
 
 Directive: ParsedDirective<'input> = {
-  ".program" <s:Symbol> => ParsedDirective::Program(s),
   ".side_set" <v:Value> <o:"opt"?> <p:"pindirs"?> => ParsedDirective::SideSet {
     value: v,
     opt: o.is_some(),
@@ -45,7 +59,7 @@ Directive: ParsedDirective<'input> = {
   },
 };
 
-Label: &'input str = <s:Symbol> ":" => s;
+Label: &'input str = "public"? <s:Symbol> ":" => s;
 
 Instruction: ParsedInstruction<'input> = {
   <o:BaseInstruction> <s:SideSet> <d:Delay> => ParsedInstruction {
@@ -88,7 +102,7 @@ BaseInstruction: ParsedOperands<'input> = {
     },
     address: e,
   },
-  "wait" <p:Value> <s:WaitSource> <i:Value> => ParsedOperands::WAIT {
+  "wait" <p:Value> <s:WaitSource> ","? <i:Value> => ParsedOperands::WAIT {
     polarity: p,
     source: s,
     index: i,
@@ -123,10 +137,17 @@ BaseInstruction: ParsedOperands<'input> = {
     },
     source: s,
   },
-  "irq" => ParsedOperands::IRQ {
-    clear: false,
-    wait: false,
-    index: Value::I32(0),
+  "irq" <m:IrqModifier?> <v:Value> <r:"rel"?> => ParsedOperands::IRQ {
+    clear: match m {
+      Some(m) => m.0,
+      None => false,
+    },
+    wait: match m {
+      Some(m) => m.1,
+      None => false,
+    },
+    index: v,
+    relative: r.is_some(),
   },
   "set" <d:SetDestination> ","? <v:Value> => ParsedOperands::SET {
     destination: d,
@@ -135,13 +156,13 @@ BaseInstruction: ParsedOperands<'input> = {
 };
 
 JmpCondition: JmpCondition = {
-  "not" "x" => JmpCondition::XIsZero,
+  "!" "x" => JmpCondition::XIsZero,
   "x" "--" => JmpCondition::XDecNonZero,
-  "not" "y" => JmpCondition::YIsZero,
+  "!" "y" => JmpCondition::YIsZero,
   "y" "--" => JmpCondition::YDecNonZero,
   "x" "!=" "y" => JmpCondition::XNotEqualY,
-  "PIN" => JmpCondition::PinHigh,
-  "!" "OSRE" => JmpCondition::OutputShiftRegisterNotEmpty,
+  "pin" => JmpCondition::PinHigh,
+  "!" "osre" => JmpCondition::OutputShiftRegisterNotEmpty,
 };
 
 WaitSource: WaitSource = {
@@ -201,6 +222,13 @@ MovSource: MovSource = {
   "osr" => MovSource::OSR,
 };
 
+IrqModifier: (bool, bool) = {
+  "set" => (false, false),
+  "nowait" => (false, false),
+  "wait" => (false, true),
+  "clear" => (true, false),
+};
+
 SetDestination: SetDestination = {
   "pins" => SetDestination::PINS,
   "x" => SetDestination::X,
@@ -239,10 +267,10 @@ ExprNotMul: Value<'input> = {
   Value,
 };
 
-Symbol = r"[a-z]+";
+Symbol = r"(\p{ID_Start}|_)\p{ID_Continue}*";
 
 Int: Value<'input> = {
   <s:r"[0-9]+"> => Value::I32(i32::from_str(s).unwrap()),
-  <s:r"0b[01]+"> => Value::I32(i32::from_str_radix(s, 2).unwrap()),
-  <s:r"0x[0-9a-fA-F]+"> => Value::I32(i32::from_str_radix(s, 16).unwrap()),
+  <s:r"0b[01]+"> => Value::I32(i32::from_str_radix(&s[2..], 2).unwrap()),
+  <s:r"0x[0-9a-fA-F]+"> => Value::I32(i32::from_str_radix(&s[2..], 16).unwrap()),
 };

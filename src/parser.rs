@@ -1,14 +1,12 @@
-use alloc::{
-    boxed::Box,
-    borrow::ToOwned,
-    string::{String, ToString},
-    vec::Vec,
-};
 use crate::{
     InSource, Instruction, InstructionOperands, JmpCondition, MovDestination, MovOperation,
     MovSource, OutDestination, SetDestination, WaitSource,
 };
-use lalrpop_util::ParseError;
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec::Vec,
+};
 use hashbrown::hash_map::HashMap;
 
 mod pio {
@@ -29,10 +27,10 @@ pub(crate) enum Value<'input> {
 }
 
 impl<'i> Value<'i> {
-    fn reify(&self, state: &ParseState) -> i32 {
+    fn reify(&self, state: &ProgramState) -> i32 {
         match self {
             Value::I32(v) => *v,
-            Value::Symbol(s) => state.defines[s.to_owned()] as i32,
+            Value::Symbol(s) => state.resolve(s),
             Value::Add(a, b) => a.reify(state) + b.reify(state),
             Value::Sub(a, b) => a.reify(state) - b.reify(state),
             Value::Mul(a, b) => a.reify(state) * b.reify(state),
@@ -52,7 +50,6 @@ pub(crate) enum Line<'input> {
 
 #[derive(Debug)]
 pub(crate) enum ParsedDirective<'input> {
-    Program(&'input str),
     SideSet {
         value: Value<'input>,
         opt: bool,
@@ -74,7 +71,7 @@ pub(crate) struct ParsedInstruction<'input> {
 }
 
 impl<'i> ParsedInstruction<'i> {
-    fn reify(&self, state: &ParseState) -> Instruction {
+    fn reify(&self, state: &ProgramState) -> Instruction {
         Instruction {
             operands: self.operands.refiy(state),
             side_set: match &self.side_set {
@@ -122,6 +119,7 @@ pub(crate) enum ParsedOperands<'input> {
         clear: bool,
         wait: bool,
         index: Value<'input>,
+        relative: bool,
     },
     SET {
         destination: SetDestination,
@@ -130,7 +128,7 @@ pub(crate) enum ParsedOperands<'input> {
 }
 
 impl<'i> ParsedOperands<'i> {
-    fn refiy(&self, state: &ParseState) -> InstructionOperands {
+    fn refiy(&self, state: &ProgramState) -> InstructionOperands {
         match self {
             ParsedOperands::JMP { condition, address } => InstructionOperands::JMP {
                 condition: *condition,
@@ -173,10 +171,16 @@ impl<'i> ParsedOperands<'i> {
                 op: *op,
                 source: *source,
             },
-            ParsedOperands::IRQ { clear, wait, index } => InstructionOperands::IRQ {
+            ParsedOperands::IRQ {
+                clear,
+                wait,
+                index,
+                relative,
+            } => InstructionOperands::IRQ {
                 clear: *clear,
                 wait: *wait,
                 index: index.reify(state) as u8,
+                relative: *relative,
             },
             ParsedOperands::SET { destination, data } => InstructionOperands::SET {
                 destination: *destination,
@@ -186,12 +190,27 @@ impl<'i> ParsedOperands<'i> {
     }
 }
 
-#[derive(Debug)]
-struct ParseState {
+#[derive(Debug, Default)]
+struct FileState {
     defines: HashMap<String, i32>,
+}
+
+#[derive(Debug)]
+struct ProgramState<'a> {
+    file_state: &'a mut FileState,
+    labels: HashMap<String, i32>,
     side_set_size: u8,
     side_set_opt: bool,
     side_set_pindirs: bool,
+}
+
+impl<'a> ProgramState<'a> {
+    fn resolve(&self, name: &str) -> i32 {
+        match self.labels.get(name) {
+            Some(v) => *v,
+            None => self.file_state.defines[name],
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -199,76 +218,90 @@ pub struct Program {
     code: Vec<u16>,
 }
 
+type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;
+
 impl Program {
-    pub fn parse<'input>(
-        s: &'input str,
-    ) -> Result<Self, ParseError<usize, pio::Token<'input>, &'static str>> {
-        match pio::ProgramParser::new().parse(s) {
-            Ok(p) => {
-                let mut state = ParseState {
-                    defines: HashMap::new(),
-                    side_set_size: 0,
-                    side_set_opt: false,
-                    side_set_pindirs: false,
-                };
-
-                // first pass
-                //   - resolve labels
-                //   - resolve defines
-                //   - read side_set settings
-                let mut instr_index = 0;
-                for line in &p {
-                    match line {
-                        Line::Instruction(..) => {
-                            instr_index += 1;
-                        }
-                        Line::Label(name) => {
-                            state.defines.insert(name.to_string(), instr_index as i32);
-                        }
-                        Line::Directive(d) => match d {
-                            // TODO: support multiple programs using ParsedDirective::Program
-                            ParsedDirective::SideSet {
-                                value,
-                                opt,
-                                pindirs,
-                            } => {
-                                assert!(instr_index == 0);
-                                state.side_set_size = value.reify(&state) as u8;
-                                state.side_set_opt = *opt;
-                                state.side_set_pindirs = *pindirs;
-                            }
-                            ParsedDirective::Define { name, value } => {
-                                state.defines.insert(name.to_string(), value.reify(&state));
-                            }
-                            _ => {}
-                        },
-                    }
-                }
-
-                let mut a = crate::Assembler::new();
-                a.set_sideset(state.side_set_opt, state.side_set_size);
-
-                // second pass
-                //   - emit instructions
-                for line in p {
-                    if let Line::Instruction(i) = line {
-                        a.instructions.push(i.reify(&state));
-                    }
-                }
-
-                Ok(Program { code: a.assemble() })
+    pub fn parse_file<'input>(source: &'input str) -> Result<Vec<Self>, ParseError<'input>> {
+        match pio::FileParser::new().parse(source) {
+            Ok(f) => {
+                let mut state = FileState::default();
+                Ok(f.iter().map(|p| Program::process(p, &mut state)).collect())
             }
             Err(e) => Err(e),
         }
+    }
+
+    pub fn parse_program<'input>(source: &'input str) -> Result<Self, ParseError<'input>> {
+        match pio::ProgramParser::new().parse(source) {
+            Ok(p) => Ok(Program::process(&p, &mut FileState::default())),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn process<'input>(p: &[Line<'input>], file_state: &mut FileState) -> Self {
+        let mut state = ProgramState {
+            file_state,
+            labels: HashMap::new(),
+            side_set_size: 0,
+            side_set_opt: false,
+            side_set_pindirs: false,
+        };
+
+        // first pass
+        //   - resolve labels
+        //   - resolve defines
+        //   - read side_set settings
+        let mut instr_index = 0;
+        for line in p {
+            match line {
+                Line::Instruction(..) => {
+                    instr_index += 1;
+                }
+                Line::Label(name) => {
+                    state.labels.insert(name.to_string(), instr_index as i32);
+                }
+                Line::Directive(d) => match d {
+                    // TODO: support multiple programs using ParsedDirective::Program
+                    ParsedDirective::SideSet {
+                        value,
+                        opt,
+                        pindirs,
+                    } => {
+                        assert!(instr_index == 0);
+                        state.side_set_size = value.reify(&state) as u8;
+                        state.side_set_opt = *opt;
+                        state.side_set_pindirs = *pindirs;
+                    }
+                    ParsedDirective::Define { name, value } => {
+                        state
+                            .file_state
+                            .defines
+                            .insert(name.to_string(), value.reify(&state));
+                    }
+                    _ => {}
+                },
+            }
+        }
+
+        let mut a = crate::Assembler::new();
+        a.set_sideset(state.side_set_opt, state.side_set_size);
+
+        // second pass
+        //   - emit instructions
+        for line in p {
+            if let Line::Instruction(i) = line {
+                a.instructions.push(i.reify(&state));
+            }
+        }
+
+        Program { code: a.assemble() }
     }
 }
 
 #[test]
 fn test() {
-    let p = Program::parse(
+    let p = Program::parse_program(
         "
-    .program test
-
     label:
       pull
       out pins, 1
@@ -290,9 +323,8 @@ fn test() {
 
 #[test]
 fn test_side_set() {
-    let p = Program::parse(
+    let p = Program::parse_program(
         "
-    .program test
     .side_set 1 opt
 
     label:

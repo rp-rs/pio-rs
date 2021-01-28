@@ -169,6 +169,7 @@ enum InstructionOperands {
         clear: bool,
         wait: bool,
         index: u8,
+        relative: bool,
     },
     SET {
         destination: SetDestination,
@@ -215,9 +216,15 @@ impl InstructionOperands {
                 op,
                 source,
             } => (*destination as u8, (*op as u8) << 3 | (*source as u8)),
-            InstructionOperands::IRQ { clear, wait, index } => {
-                ((*clear as u8) << 1 | (*wait as u8), *index)
-            }
+            InstructionOperands::IRQ {
+                clear,
+                wait,
+                index,
+                relative,
+            } => (
+                (*clear as u8) << 1 | (*wait as u8),
+                *index | if *relative { 1 << 5 } else { 0 },
+            ),
             InstructionOperands::SET { destination, data } => (*destination as u8, *data),
         }
     }
@@ -463,12 +470,13 @@ impl Assembler {
     );
 
     instr!(
-        /// Emit an `irq` instruction using `clear` and `wait` with `index`.
-        irq(self, clear: bool, wait: bool, index: u8) {
+        /// Emit an `irq` instruction using `clear` and `wait` with `index` which may be `relative`.
+        irq(self, clear: bool, wait: bool, index: u8, relative: bool) {
             InstructionOperands::IRQ {
                 clear,
                 wait,
                 index,
+                relative,
             }
         }
     );
@@ -589,7 +597,7 @@ instr_test!(
     0b101_00000_010_10101
 );
 
-instr_test!(irq(true, false, 10), 0b110_00000_010_01010);
-instr_test!(irq(false, true, 15), 0b110_00000_001_01111);
+instr_test!(irq(true, false, 10, false), 0b110_00000_010_01010);
+instr_test!(irq(false, true, 15, true), 0b110_00000_001_01111);
 
 instr_test!(set(SetDestination::Y, 10), 0b111_00000_010_01010);
