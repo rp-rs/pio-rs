@@ -17,8 +17,13 @@
 //! let program = a.assemble();
 //! ```
 
+#![no_std]
 // PIO instr grouping is 3/5/3/5
 #![allow(clippy::unusual_byte_groupings)]
+
+extern crate alloc;
+
+use alloc::vec::Vec;
 
 pub mod parser;
 
@@ -328,7 +333,7 @@ impl Assembler {
     /// Create a new unbound Label.
     pub fn label(&mut self) -> Label {
         Label {
-            state: LabelState::Unbound(std::u8::MAX),
+            state: LabelState::Unbound(core::u8::MAX),
         }
     }
 
@@ -338,7 +343,7 @@ impl Assembler {
             LabelState::Bound(_) => panic!("cannot bind label twice"),
             LabelState::Unbound(mut patch) => {
                 let resolved_address = self.instructions.len() as u8;
-                while patch != std::u8::MAX {
+                while patch != core::u8::MAX {
                     // SAFETY: patch points to the next instruction to patch
                     let instr = unsafe { self.instructions.get_unchecked_mut(patch as usize) };
                     if let InstructionOperands::JMP { address, .. } = &mut instr.operands {

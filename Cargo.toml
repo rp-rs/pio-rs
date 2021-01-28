@@ -6,7 +6,8 @@ edition = "2018"
 
 [dependencies]
 paste = "1.0"
-lalrpop-util = "0.19"
+lalrpop-util = { git = "https://github.com/devsnek/lalrpop.git", branch = "better" }
+hashbrown = "0.9"
 
 [build-dependencies]
-lalrpop = "0.19"
+lalrpop = { git = "https://github.com/devsnek/lalrpop.git", branch = "better" }

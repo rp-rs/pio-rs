@@ -1,21 +1,23 @@
+use alloc::{
+    boxed::Box,
+    borrow::ToOwned,
+    string::{String, ToString},
+    vec::Vec,
+};
 use crate::{
     InSource, Instruction, InstructionOperands, JmpCondition, MovDestination, MovOperation,
     MovSource, OutDestination, SetDestination, WaitSource,
 };
 use lalrpop_util::ParseError;
-use std::collections::HashMap;
+use hashbrown::hash_map::HashMap;
 
 mod pio {
     #![allow(clippy::all)]
     include!(concat!(env!("OUT_DIR"), "/pio.rs"));
 }
 
-// FIXME: these structs should all be pub(crate), but
-// https://github.com/lalrpop/lalrpop/pull/485
-
 #[derive(Debug)]
-#[doc(hidden)]
-pub enum Value<'input> {
+pub(crate) enum Value<'input> {
     I32(i32),
     Symbol(&'input str),
     Add(Box<Value<'input>>, Box<Value<'input>>),
@@ -42,16 +44,14 @@ impl<'i> Value<'i> {
 }
 
 #[derive(Debug)]
-#[doc(hidden)]
-pub enum Line<'input> {
+pub(crate) enum Line<'input> {
     Directive(ParsedDirective<'input>),
     Instruction(ParsedInstruction<'input>),
     Label(&'input str),
 }
 
 #[derive(Debug)]
-#[doc(hidden)]
-pub enum ParsedDirective<'input> {
+pub(crate) enum ParsedDirective<'input> {
     Program(&'input str),
     SideSet {
         value: Value<'input>,
@@ -67,8 +67,7 @@ pub enum ParsedDirective<'input> {
 }
 
 #[derive(Debug)]
-#[doc(hidden)]
-pub struct ParsedInstruction<'input> {
+pub(crate) struct ParsedInstruction<'input> {
     operands: ParsedOperands<'input>,
     side_set: Option<Value<'input>>,
     delay: Value<'input>,
@@ -88,8 +87,7 @@ impl<'i> ParsedInstruction<'i> {
 }
 
 #[derive(Debug)]
-#[doc(hidden)]
-pub enum ParsedOperands<'input> {
+pub(crate) enum ParsedOperands<'input> {
     JMP {
         condition: JmpCondition,
         address: Value<'input>,

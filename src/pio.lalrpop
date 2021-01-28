@@ -1,6 +1,7 @@
 // https://github.com/raspberrypi/pico-sdk/blob/master/tools/pioasm/parser.yy
 
-use std::str::FromStr;
+use core::str::FromStr;
+use alloc::boxed::Box;
 use crate::{
   JmpCondition,
   WaitSource,
