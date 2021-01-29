@@ -226,7 +226,7 @@ impl<'a> ProgramState<'a> {
 
 #[derive(Debug)]
 pub struct Program {
-    #[doc(hidden)]
+    #[doc(hidden)] // pub for pio-proc
     pub code: Vec<u16>,
 }
 

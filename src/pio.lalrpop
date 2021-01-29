@@ -23,8 +23,9 @@ use crate::{
 grammar();
 
 match {
-  r"\s*" => {}, // ignore whitespace
-  r";[^\n\r]*[\n\r]*" => {}, // ignore `;` comments
+  r"[\t\f\v ]" => {}, // ignore whitespace
+  r"(\r?\n)?;[^\n\r]*" => {}, // ignore `;` comments
+  r"\r?\n" => NEWLINE,
   r"% c-sdk \{[^%]*%}" => {}, // ignore `% c-sdk { ... }`
   r"\.lang_opt [^\n\r]*" => LANG_OPT, // lex `.lang_opt` directives
 } else {
@@ -32,17 +33,17 @@ match {
 }
 
 // for parsing a .pio file
-pub(crate) File = <DefineDirective*> <ProgramWithDirective*>;
+pub(crate) File = NEWLINE* <DefineDirective*> <ProgramWithDirective*>;
 
-ProgramWithDirective = ".program" Symbol <Program>;
+ProgramWithDirective = ".program" Symbol NEWLINE <Program>;
 
 // for parsing macro input
-pub(crate) Program = <Line*>;
+pub(crate) Program = NEWLINE* <Line*>;
 
 Line: Line<'input> = {
-  <d:Directive> => Line::Directive(d),
-  <l:Label> => Line::Label(l),
-  <i:Instruction> => Line::Instruction(i),
+  <d:Directive> NEWLINE+ => Line::Directive(d),
+  <l:Label> NEWLINE+ => Line::Label(l),
+  <i:Instruction> NEWLINE+ => Line::Instruction(i),
 };
 
 Directive: ParsedDirective<'input> = {

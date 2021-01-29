@@ -43,7 +43,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 ParseError::UnrecognizedToken { token, expected } => (
                     token.0..token.2,
                     vec![
-                        format!("unexpected token: {}", token.1),
+                        format!("unexpected token: {:?}", format!("{}", token.1)),
                         format!("expected one of {}", expected.join(", ")),
                     ],
                 ),
