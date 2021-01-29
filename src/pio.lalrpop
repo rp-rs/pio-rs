@@ -42,7 +42,10 @@ pub(crate) Program = NEWLINE* <Line*>;
 
 Line: Line<'input> = {
   <d:Directive> NEWLINE+ => Line::Directive(d),
-  <l:Label> NEWLINE+ => Line::Label(l),
+  <p:"public"?> <s:Symbol> ":" NEWLINE+ => Line::Label {
+    public: p.is_some(),
+    name: s,
+  },
   <i:Instruction> NEWLINE+ => Line::Instruction(i),
 };
 
@@ -59,12 +62,11 @@ Directive: ParsedDirective<'input> = {
   <l:LANG_OPT> => ParsedDirective::LangOpt(l),
 };
 
-DefineDirective: ParsedDirective<'input> = ".define" "public"? <s:Symbol> <e:Expression> => ParsedDirective::Define {
+DefineDirective: ParsedDirective<'input> = ".define" <p:"public"?> <s:Symbol> <e:Expression> => ParsedDirective::Define {
+  public: p.is_some(),
   name: s,
   value: e,
 };
-
-Label: &'input str = "public"? <s:Symbol> ":" => s;
 
 Instruction: ParsedInstruction<'input> = {
   <o:BaseInstruction> <s:SideSet> <d:Delay> => ParsedInstruction {

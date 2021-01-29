@@ -45,12 +45,13 @@ impl<'i> Value<'i> {
 pub(crate) enum Line<'input> {
     Directive(ParsedDirective<'input>),
     Instruction(ParsedInstruction<'input>),
-    Label(&'input str),
+    Label { public: bool, name: &'input str },
 }
 
 #[derive(Debug)]
 pub(crate) enum ParsedDirective<'input> {
     Define {
+        public: bool,
         name: &'input str,
         value: Value<'input>,
     },
@@ -194,13 +195,13 @@ impl<'i> ParsedOperands<'i> {
 
 #[derive(Debug, Default)]
 struct FileState {
-    defines: HashMap<String, i32>,
+    defines: HashMap<String, (bool, i32)>,
 }
 
 #[derive(Debug)]
 struct ProgramState<'a> {
     file_state: &'a mut FileState,
-    defines: HashMap<String, i32>,
+    defines: HashMap<String, (bool, i32)>,
 }
 
 impl<'a> ProgramState<'a> {
@@ -213,25 +214,42 @@ impl<'a> ProgramState<'a> {
 
     fn resolve(&self, name: &str) -> i32 {
         match self.defines.get(name) {
-            Some(v) => *v,
-            None => self.file_state.defines[name],
+            Some(v) => v.1,
+            None => self.file_state.defines[name].1,
         }
+    }
+
+    fn public_defines(&self) -> HashMap<String, i32> {
+        let mut p = HashMap::new();
+        for (name, (public, value)) in &self.file_state.defines {
+            if *public {
+                p.insert(name.to_string(), *value);
+            }
+        }
+        for (name, (public, value)) in &self.defines {
+            if *public {
+                p.insert(name.to_string(), *value);
+            }
+        }
+        p
     }
 }
 
 #[derive(Debug)]
-pub struct Program {
+pub struct Program<PublicDefines> {
     #[doc(hidden)] // pub for pio-proc
     pub origin: Option<u8>,
     #[doc(hidden)] // pub for pio-proc
     pub code: Vec<u16>,
     #[doc(hidden)] // pub for pio-proc
     pub wrap: (u8, u8),
+    #[doc(hidden)] // pub for pio-proc
+    pub public_defines: PublicDefines,
 }
 
 type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;
 
-impl Program {
+impl Program<HashMap<String, i32>> {
     /// Parse a PIO "file", which contains some number of PIO programs
     /// separated by `.program` directives.
     pub fn parse_file(source: &str) -> Result<Vec<Self>, ParseError> {
@@ -242,11 +260,16 @@ impl Program {
                 // set up global defines
                 let fake_prog_state = ProgramState::new(&mut state);
                 for d in f.0 {
-                    if let ParsedDirective::Define { name, value } = d {
+                    if let ParsedDirective::Define {
+                        public,
+                        name,
+                        value,
+                    } = d
+                    {
                         fake_prog_state
                             .file_state
                             .defines
-                            .insert(name.to_string(), value.reify(&fake_prog_state));
+                            .insert(name.to_string(), (public, value.reify(&fake_prog_state)));
                     }
                 }
 
@@ -286,12 +309,20 @@ impl Program {
                 Line::Instruction(..) => {
                     instr_index += 1;
                 }
-                Line::Label(name) => {
-                    state.defines.insert(name.to_string(), instr_index as i32);
+                Line::Label { public, name } => {
+                    state
+                        .defines
+                        .insert(name.to_string(), (*public, instr_index as i32));
                 }
                 Line::Directive(d) => match d {
-                    ParsedDirective::Define { name, value } => {
-                        state.defines.insert(name.to_string(), value.reify(&state));
+                    ParsedDirective::Define {
+                        public,
+                        name,
+                        value,
+                    } => {
+                        state
+                            .defines
+                            .insert(name.to_string(), (*public, value.reify(&state)));
                     }
                     ParsedDirective::Origin(value) => {
                         origin = Some(value.reify(&state) as u8);
@@ -342,11 +373,12 @@ impl Program {
                 None => (0, code.len() as u8 - 1),
             },
             code,
+            public_defines: state.public_defines(),
         }
     }
 }
 
-impl Program {
+impl<P> Program<P> {
     /// Get the optional origin of this program. If
     /// not present, the program may be loaded to any
     /// offset in PIO instruction memory.
@@ -362,6 +394,11 @@ impl Program {
     /// Get the wrap setting of this program
     pub fn wrap(&self) -> (u8, u8) {
         self.wrap
+    }
+
+    /// Get the publicly exposed defines of this program.
+    pub fn public_defines(&self) -> &P {
+        &self.public_defines
     }
 }
 

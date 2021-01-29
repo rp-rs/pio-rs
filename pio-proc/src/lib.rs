@@ -23,11 +23,43 @@ pub fn pio(item: TokenStream) -> TokenStream {
             .unwrap();
             let wrap: proc_macro2::TokenStream =
                 format!("({}, {})", p.wrap().0, p.wrap().1).parse().unwrap();
+            let defines_struct: proc_macro2::TokenStream = format!(
+                "
+            struct ExpandedDefines {{
+                {}
+            }}
+            ",
+                p.public_defines()
+                    .keys()
+                    .map(|k| format!("{}: i32,", k))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            )
+            .parse()
+            .unwrap();
+            let defines_init: proc_macro2::TokenStream = format!(
+                "
+            ExpandedDefines {{
+                {}
+            }}
+            ",
+                p.public_defines()
+                    .iter()
+                    .map(|(k, v)| format!("{}: {},", k, v))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            )
+            .parse()
+            .unwrap();
             quote! {
-                pio::parser::Program {
-                    origin: #origin,
-                    code: #code,
-                    wrap: #wrap,
+                {
+                    #defines_struct
+                    pio::parser::Program {
+                        origin: #origin,
+                        code: #code,
+                        wrap: #wrap,
+                        public_defines: #defines_init,
+                    }
                 }
             }
         }
