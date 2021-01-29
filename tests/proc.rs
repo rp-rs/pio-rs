@@ -8,7 +8,7 @@ fn test_pio_proc() {
     );
     assert_eq!(p.origin(), None);
     assert_eq!(p.code(), &[0]);
-    assert_eq!(p.wrap, (0, 0));
+    assert_eq!(p.wrap(), (0, 0));
 }
 
 #[test]
@@ -26,7 +26,7 @@ fn test_pio_proc2() {
     );
     assert_eq!(p.origin(), Some(5));
     assert_eq!(p.code(), &[0, 0]);
-    assert_eq!(p.wrap, (0, 0));
+    assert_eq!(p.wrap(), (0, 0));
     assert_eq!(p.public_defines().label, 0);
     assert_eq!(p.public_defines().owo, 2);
 }

@@ -237,14 +237,27 @@ impl<'a> ProgramState<'a> {
 
 #[derive(Debug)]
 pub struct Program<PublicDefines> {
-    #[doc(hidden)] // pub for pio-proc
-    pub origin: Option<u8>,
-    #[doc(hidden)] // pub for pio-proc
-    pub code: Vec<u16>,
-    #[doc(hidden)] // pub for pio-proc
-    pub wrap: (u8, u8),
-    #[doc(hidden)] // pub for pio-proc
-    pub public_defines: PublicDefines,
+    origin: Option<u8>,
+    code: Vec<u16>,
+    wrap: (u8, u8),
+    public_defines: PublicDefines,
+}
+
+impl<P> Program<P> {
+    #[doc(hidden)]
+    pub fn new_from_proc_macro(
+        origin: Option<u8>,
+        code: Vec<u16>,
+        wrap: (u8, u8),
+        public_defines: P,
+    ) -> Self {
+        Program {
+            origin,
+            code,
+            wrap,
+            public_defines,
+        }
+    }
 }
 
 type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;
