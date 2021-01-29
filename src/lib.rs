@@ -27,7 +27,8 @@ pub extern crate alloc;
 
 use alloc::vec::Vec;
 
-pub mod parser;
+mod parser;
+pub use parser::Program;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]

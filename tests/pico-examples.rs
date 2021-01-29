@@ -1,5 +1,3 @@
-use pio::parser::Program;
-
 #[macro_use]
 extern crate pretty_assertions;
 
@@ -7,7 +5,7 @@ extern crate pretty_assertions;
 fn test(test: &str) {
     let path = std::path::PathBuf::from(test);
     let program_source = std::fs::read_to_string(&path).unwrap();
-    let programs = Program::parse_file(&program_source).unwrap();
+    let programs = pio::Program::parse_file(&program_source).unwrap();
 
     let mut hex_path = path;
     hex_path.set_extension("hex");
