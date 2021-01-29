@@ -47,6 +47,8 @@ Line: Line<'input> = {
 };
 
 Directive: ParsedDirective<'input> = {
+  DefineDirective,
+  ".origin" <v:Value> => ParsedDirective::Origin(v),
   ".side_set" <v:Value> <o:"opt"?> <p:"pindirs"?> => ParsedDirective::SideSet {
     value: v,
     opt: o.is_some(),
@@ -54,7 +56,6 @@ Directive: ParsedDirective<'input> = {
   },
   ".wrap_target" => ParsedDirective::WrapTarget,
   ".wrap" => ParsedDirective::Wrap,
-  DefineDirective,
   <l:LANG_OPT> => ParsedDirective::LangOpt(l),
 };
 

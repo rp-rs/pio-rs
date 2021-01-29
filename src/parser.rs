@@ -50,6 +50,11 @@ pub(crate) enum Line<'input> {
 
 #[derive(Debug)]
 pub(crate) enum ParsedDirective<'input> {
+    Define {
+        name: &'input str,
+        value: Value<'input>,
+    },
+    Origin(Value<'input>),
     SideSet {
         value: Value<'input>,
         opt: bool,
@@ -57,10 +62,6 @@ pub(crate) enum ParsedDirective<'input> {
     },
     WrapTarget,
     Wrap,
-    Define {
-        name: &'input str,
-        value: Value<'input>,
-    },
     LangOpt(&'input str),
 }
 
@@ -200,9 +201,6 @@ struct FileState {
 struct ProgramState<'a> {
     file_state: &'a mut FileState,
     defines: HashMap<String, i32>,
-    side_set_size: u8,
-    side_set_opt: bool,
-    side_set_pindirs: bool,
 }
 
 impl<'a> ProgramState<'a> {
@@ -210,9 +208,6 @@ impl<'a> ProgramState<'a> {
         ProgramState {
             file_state,
             defines: HashMap::new(),
-            side_set_size: 0,
-            side_set_opt: false,
-            side_set_pindirs: false,
         }
     }
 
@@ -227,7 +222,11 @@ impl<'a> ProgramState<'a> {
 #[derive(Debug)]
 pub struct Program {
     #[doc(hidden)] // pub for pio-proc
+    pub origin: Option<u8>,
+    #[doc(hidden)] // pub for pio-proc
     pub code: Vec<u16>,
+    #[doc(hidden)] // pub for pio-proc
+    pub wrap: (u8, u8),
 }
 
 type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;
@@ -274,7 +273,13 @@ impl Program {
         // first pass
         //   - resolve labels
         //   - resolve defines
-        //   - read side_set settings
+        //   - read side set settings
+        let mut side_set_size = 0;
+        let mut side_set_opt = false;
+        let mut side_set_pindirs = false;
+        let mut origin = None;
+        let mut wrap_target = None;
+        let mut wrap = None;
         let mut instr_index = 0;
         for line in p {
             match line {
@@ -285,19 +290,29 @@ impl Program {
                     state.defines.insert(name.to_string(), instr_index as i32);
                 }
                 Line::Directive(d) => match d {
-                    // TODO: support multiple programs using ParsedDirective::Program
+                    ParsedDirective::Define { name, value } => {
+                        state.defines.insert(name.to_string(), value.reify(&state));
+                    }
+                    ParsedDirective::Origin(value) => {
+                        origin = Some(value.reify(&state) as u8);
+                    }
                     ParsedDirective::SideSet {
                         value,
                         opt,
                         pindirs,
                     } => {
                         assert!(instr_index == 0);
-                        state.side_set_size = value.reify(&state) as u8;
-                        state.side_set_opt = *opt;
-                        state.side_set_pindirs = *pindirs;
+                        side_set_size = value.reify(&state) as u8;
+                        side_set_opt = *opt;
+                        side_set_pindirs = *pindirs;
                     }
-                    ParsedDirective::Define { name, value } => {
-                        state.defines.insert(name.to_string(), value.reify(&state));
+                    ParsedDirective::WrapTarget => {
+                        assert!(wrap_target == None);
+                        wrap_target = Some(instr_index);
+                    }
+                    ParsedDirective::Wrap => {
+                        assert!(wrap == None);
+                        wrap = Some(instr_index - 1);
                     }
                     _ => {}
                 },
@@ -305,8 +320,9 @@ impl Program {
         }
 
         let mut a = crate::Assembler::new_with_side_set(crate::SideSet::new(
-            state.side_set_opt,
-            state.side_set_size,
+            side_set_opt,
+            side_set_size,
+            side_set_pindirs,
         ));
 
         // second pass
@@ -317,14 +333,35 @@ impl Program {
             }
         }
 
-        Program { code: a.assemble() }
+        let code = a.assemble();
+
+        Program {
+            origin,
+            wrap: match wrap_target {
+                Some(t) => (t, wrap.unwrap()),
+                None => (0, code.len() as u8 - 1),
+            },
+            code,
+        }
     }
 }
 
 impl Program {
+    /// Get the optional origin of this program. If
+    /// not present, the program may be loaded to any
+    /// offset in PIO instruction memory.
+    pub fn origin(&self) -> Option<u8> {
+        self.origin
+    }
+
     /// Get the assembled code of this program.
     pub fn code(&self) -> &[u16] {
         &self.code
+    }
+
+    /// Get the wrap setting of this program
+    pub fn wrap(&self) -> (u8, u8) {
+        self.wrap
     }
 }
 
@@ -349,6 +386,8 @@ fn test() {
             0b000_00000_000_00000, // JMP LABEL
         ]
     );
+    assert_eq!(p.origin, None);
+    assert_eq!(p.wrap, (0, 2));
 }
 
 #[test]
@@ -356,10 +395,13 @@ fn test_side_set() {
     let p = Program::parse_program(
         "
     .side_set 1 opt
+    .origin 5
 
     label:
       pull
+      .wrap_target
       out pins, 1
+      .wrap
       jmp label side 1
     ",
     )
@@ -374,4 +416,6 @@ fn test_side_set() {
             0b000_11000_000_00000, // JMP LABEL, SIDE 1
         ]
     );
+    assert_eq!(p.origin, Some(5));
+    assert_eq!(p.wrap, (1, 1));
 }

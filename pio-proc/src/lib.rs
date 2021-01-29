@@ -10,6 +10,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
     let source = parse_macro_input!(item as syn::LitStr);
     let result = match pio::parser::Program::parse_program(&source.value()) {
         Ok(p) => {
+            let origin: proc_macro2::TokenStream = format!("{:?}", p.origin).parse().unwrap();
             let code: proc_macro2::TokenStream = format!(
                 "::pio::alloc::vec![{}]",
                 p.code()
@@ -20,9 +21,13 @@ pub fn pio(item: TokenStream) -> TokenStream {
             )
             .parse()
             .unwrap();
+            let wrap: proc_macro2::TokenStream =
+                format!("({}, {})", p.wrap().0, p.wrap().1).parse().unwrap();
             quote! {
                 pio::parser::Program {
+                    origin: #origin,
                     code: #code,
+                    wrap: #wrap,
                 }
             }
         }

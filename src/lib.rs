@@ -306,6 +306,33 @@ impl Drop for Label {
     }
 }
 
+/// Data for 'side' set instruction parameters.
+pub struct SideSet {
+    opt: bool,
+    bits: u8,
+    max: u8,
+    pindirs: bool,
+}
+
+impl SideSet {
+    pub fn new(opt: bool, bits: u8, pindirs: bool) -> SideSet {
+        SideSet {
+            opt,
+            bits: bits + if opt { 1 } else { 0 },
+            max: (1 << bits) - 1,
+            pindirs,
+        }
+    }
+
+    pub fn optional(&self) -> bool {
+        self.opt
+    }
+
+    pub fn pindirs(&self) -> bool {
+        self.pindirs
+    }
+}
+
 /// A PIO Assembler. See chapter three of the [RP2040 Datasheet][].
 ///
 /// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
@@ -315,28 +342,11 @@ pub struct Assembler {
     delay_max: u8,
 }
 
-/// Data for 'side' set instruction parameters.
-pub struct SideSet {
-    opt: bool,
-    bits: u8,
-    max: u8,
-}
-
-impl SideSet {
-    pub fn new(opt: bool, bits: u8) -> SideSet {
-        SideSet {
-            opt,
-            bits: bits + if opt { 1 } else { 0 },
-            max: (1 << bits) - 1,
-        }
-    }
-}
-
 impl Assembler {
     /// Create a new Assembler.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Assembler {
-        Assembler::new_with_side_set(SideSet::new(false, 0))
+        Assembler::new_with_side_set(SideSet::new(false, 0, false))
     }
 
     /// Create a new Assembler with `SideSet` settings.
@@ -578,7 +588,7 @@ macro_rules! instr_test {
     };
 
     ($name:ident ( $( $v:expr ),* ) , $b:expr) => {
-        instr_test!( $name ( $( $v ),* ), $b, SideSet::new(false, 0) );
+        instr_test!( $name ( $( $v ),* ), $b, SideSet::new(false, 0, false) );
     };
 }
 
@@ -591,7 +601,7 @@ instr_test!(
 instr_test!(
     wait_with_side_set(0, WaitSource::IRQ, 10, 0b10101),
     0b001_10101_010_01010,
-    SideSet::new(false, 5)
+    SideSet::new(false, 5, false)
 );
 
 instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);
