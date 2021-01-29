@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["snek"]
 edition = "2018"
 
+[workspace]
+members = ["pio-proc"]
+
 [dependencies]
 paste = "1.0"
 lalrpop-util = { git = "https://github.com/lalrpop/lalrpop.git", rev = "a8afe7d" }
@@ -15,3 +18,4 @@ lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", rev = "a8afe7d" }
 [dev-dependencies]
 test-generator = "0.3.0"
 pretty_assertions = "0.6"
+pio-proc = { path = "./pio-proc" }

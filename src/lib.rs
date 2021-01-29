@@ -21,7 +21,9 @@
 // PIO instr grouping is 3/5/3/5
 #![allow(clippy::unusual_byte_groupings)]
 
-extern crate alloc;
+// pub because the proc macro needs it
+#[doc(hidden)]
+pub extern crate alloc;
 
 use alloc::vec::Vec;
 

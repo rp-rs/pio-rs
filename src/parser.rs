@@ -226,7 +226,8 @@ impl<'a> ProgramState<'a> {
 
 #[derive(Debug)]
 pub struct Program {
-    code: Vec<u16>,
+    #[doc(hidden)]
+    pub code: Vec<u16>,
 }
 
 type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;

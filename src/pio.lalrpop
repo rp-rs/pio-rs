@@ -242,10 +242,6 @@ SetDestination: SetDestination = {
 SideSet: Value<'input> = "side" <v:Value> => v;
 Delay: Value<'input> = "[" <e:Expression> "]" => e;
 
-LabelledInstruction = {
-  "c",
-};
-
 Value: Value<'input> = {
   Int,
   <s:Symbol> => Value::Symbol(s),
