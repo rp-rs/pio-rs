@@ -240,6 +240,7 @@ pub struct Program<PublicDefines> {
     origin: Option<u8>,
     code: Vec<u16>,
     wrap: (u8, u8),
+    side_set: crate::SideSet,
     public_defines: PublicDefines,
 }
 
@@ -249,12 +250,14 @@ impl<P> Program<P> {
         origin: Option<u8>,
         code: Vec<u16>,
         wrap: (u8, u8),
+        side_set: crate::SideSet,
         public_defines: P,
     ) -> Self {
         Program {
             origin,
             code,
             wrap,
+            side_set,
             public_defines,
         }
     }
@@ -377,6 +380,7 @@ impl Program<HashMap<String, i32>> {
             }
         }
 
+        let side_set = a.side_set.clone();
         let code = a.assemble();
 
         Program {
@@ -386,6 +390,7 @@ impl Program<HashMap<String, i32>> {
                 None => (0, code.len() as u8 - 1),
             },
             code,
+            side_set,
             public_defines: state.public_defines(),
         }
     }
@@ -407,6 +412,10 @@ impl<P> Program<P> {
     /// Get the wrap setting of this program
     pub fn wrap(&self) -> (u8, u8) {
         self.wrap
+    }
+
+    pub fn side_set(&self) -> &crate::SideSet {
+        &self.side_set
     }
 
     /// Get the publicly exposed defines of this program.

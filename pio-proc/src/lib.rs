@@ -23,6 +23,14 @@ pub fn pio(item: TokenStream) -> TokenStream {
             .unwrap();
             let wrap: proc_macro2::TokenStream =
                 format!("({}, {})", p.wrap().0, p.wrap().1).parse().unwrap();
+            let side_set: proc_macro2::TokenStream = format!(
+                "::pio::SideSet::new_from_proc_macro({}, {}, {})",
+                p.side_set().optional(),
+                p.side_set().bits(),
+                p.side_set().pindirs()
+            )
+            .parse()
+            .unwrap();
             let defines_struct: proc_macro2::TokenStream = format!(
                 "
             struct ExpandedDefines {{
@@ -55,7 +63,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 {
                     #defines_struct
                     pio::Program::new_from_proc_macro(
-                        #origin, #code, #wrap, #defines_init,
+                        #origin, #code, #wrap, #side_set, #defines_init,
                     )
                 }
             }

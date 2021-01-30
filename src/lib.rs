@@ -308,6 +308,7 @@ impl Drop for Label {
 }
 
 /// Data for 'side' set instruction parameters.
+#[derive(Debug, Clone)]
 pub struct SideSet {
     opt: bool,
     bits: u8,
@@ -325,8 +326,22 @@ impl SideSet {
         }
     }
 
+    #[doc(hidden)]
+    pub fn new_from_proc_macro(opt: bool, bits: u8, pindirs: bool) -> SideSet {
+        SideSet {
+            opt,
+            bits,
+            max: (1 << bits) - 1,
+            pindirs,
+        }
+    }
+
     pub fn optional(&self) -> bool {
         self.opt
+    }
+
+    pub fn bits(&self) -> u8 {
+        self.bits
     }
 
     pub fn pindirs(&self) -> bool {
@@ -337,6 +352,7 @@ impl SideSet {
 /// A PIO Assembler. See chapter three of the [RP2040 Datasheet][].
 ///
 /// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
+#[derive(Debug)]
 pub struct Assembler {
     instructions: Vec<Instruction>,
     side_set: SideSet,
