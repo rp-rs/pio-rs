@@ -20,15 +20,13 @@
 #![no_std]
 // PIO instr grouping is 3/5/3/5
 #![allow(clippy::unusual_byte_groupings)]
+#![allow(clippy::upper_case_acronyms)]
 
 // pub because the proc macro needs it
 #[doc(hidden)]
 pub extern crate alloc;
 
 use alloc::vec::Vec;
-
-mod parser;
-pub use parser::Program;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -105,7 +103,7 @@ pub enum MovOperation {
     None = 0b00,
     Invert = 0b01,
     BitReverse = 0b10,
-    // Reserved = 0b11,
+    // RESERVED = 0b11,
 }
 
 #[repr(u8)]
@@ -135,7 +133,7 @@ pub enum SetDestination {
 }
 
 #[derive(Debug)]
-enum InstructionOperands {
+pub enum InstructionOperands {
     JMP {
         condition: JmpCondition,
         address: u8,
@@ -248,10 +246,10 @@ impl InstructionOperands {
 }
 
 #[derive(Debug)]
-pub(crate) struct Instruction {
-    operands: InstructionOperands,
-    delay: u8,
-    side_set: Option<u8>,
+pub struct Instruction {
+    pub operands: InstructionOperands,
+    pub delay: u8,
+    pub side_set: Option<u8>,
 }
 
 impl Instruction {
@@ -354,8 +352,10 @@ impl SideSet {
 /// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
 #[derive(Debug)]
 pub struct Assembler {
-    instructions: Vec<Instruction>,
-    side_set: SideSet,
+    #[doc(hidden)]
+    pub instructions: Vec<Instruction>,
+    #[doc(hidden)]
+    pub side_set: SideSet,
     delay_max: u8,
 }
 
@@ -444,18 +444,19 @@ impl Assembler {
     instr!(
         /// Emit a `jmp` instruction to `label` for `condition`.
         jmp(self, condition: JmpCondition, label: &mut Label) {
-        let address = match label.state {
-            LabelState::Unbound(a) => {
-                label.state = LabelState::Unbound(self.instructions.len() as u8);
-                a
+            let address = match label.state {
+                LabelState::Unbound(a) => {
+                    label.state = LabelState::Unbound(self.instructions.len() as u8);
+                    a
+                }
+                LabelState::Bound(a) => a,
+            };
+            InstructionOperands::JMP {
+                condition,
+                address,
             }
-            LabelState::Bound(a) => a,
-        };
-        InstructionOperands::JMP {
-            condition,
-            address,
         }
-    });
+    );
 
     instr!(
         /// Emit a `wait` instruction with `polarity` from `source` with `index`.

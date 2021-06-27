@@ -1,15 +1,15 @@
-use crate::{
+// PIO instr grouping is 3/5/3/5
+#![allow(clippy::unusual_byte_groupings)]
+#![allow(clippy::upper_case_acronyms)]
+
+use pio::{
     InSource, Instruction, InstructionOperands, JmpCondition, MovDestination, MovOperation,
     MovSource, OutDestination, SetDestination, WaitSource,
 };
-use alloc::{
-    boxed::Box,
-    string::{String, ToString},
-    vec::Vec,
-};
-use hashbrown::hash_map::HashMap;
 
-mod pio {
+use std::collections::HashMap;
+
+mod parser {
     #![allow(clippy::all)]
     include!(concat!(env!("OUT_DIR"), "/pio.rs"));
 }
@@ -77,10 +77,7 @@ impl<'i> ParsedInstruction<'i> {
     fn reify(&self, state: &ProgramState) -> Instruction {
         Instruction {
             operands: self.operands.refiy(state),
-            side_set: match &self.side_set {
-                Some(s) => Some(s.reify(state) as u8),
-                None => None,
-            },
+            side_set: self.side_set.as_ref().map(|s| s.reify(state) as u8),
             delay: self.delay.reify(state) as u8,
         }
     }
@@ -240,7 +237,7 @@ pub struct Program<PublicDefines> {
     origin: Option<u8>,
     code: Vec<u16>,
     wrap: (u8, u8),
-    side_set: crate::SideSet,
+    side_set: pio::SideSet,
     public_defines: PublicDefines,
 }
 
@@ -250,7 +247,7 @@ impl<P> Program<P> {
         origin: Option<u8>,
         code: Vec<u16>,
         wrap: (u8, u8),
-        side_set: crate::SideSet,
+        side_set: pio::SideSet,
         public_defines: P,
     ) -> Self {
         Program {
@@ -263,13 +260,13 @@ impl<P> Program<P> {
     }
 }
 
-type ParseError<'input> = lalrpop_util::ParseError<usize, pio::Token<'input>, &'static str>;
+type ParseError<'input> = lalrpop_util::ParseError<usize, parser::Token<'input>, &'static str>;
 
 impl Program<HashMap<String, i32>> {
     /// Parse a PIO "file", which contains some number of PIO programs
     /// separated by `.program` directives.
     pub fn parse_file(source: &str) -> Result<Vec<Self>, ParseError> {
-        match pio::FileParser::new().parse(source) {
+        match parser::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
 
@@ -300,7 +297,7 @@ impl Program<HashMap<String, i32>> {
 
     /// Parse a single PIO program, without the `.program` directive.
     pub fn parse_program(source: &str) -> Result<Self, ParseError> {
-        match pio::ProgramParser::new().parse(source) {
+        match parser::ProgramParser::new().parse(source) {
             Ok(p) => Ok(Program::process(&p, &mut FileState::default())),
             Err(e) => Err(e),
         }
@@ -366,7 +363,7 @@ impl Program<HashMap<String, i32>> {
             }
         }
 
-        let mut a = crate::Assembler::new_with_side_set(crate::SideSet::new(
+        let mut a = pio::Assembler::new_with_side_set(pio::SideSet::new(
             side_set_opt,
             side_set_size,
             side_set_pindirs,
@@ -414,7 +411,7 @@ impl<P> Program<P> {
         self.wrap
     }
 
-    pub fn side_set(&self) -> &crate::SideSet {
+    pub fn side_set(&self) -> &pio::SideSet {
         &self.side_set
     }
 

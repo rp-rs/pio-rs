@@ -1,8 +1,7 @@
 // https://github.com/raspberrypi/pico-sdk/blob/master/tools/pioasm/parser.yy
 
-use core::str::FromStr;
-use alloc::boxed::Box;
-use crate::{
+use std::str::FromStr;
+use ::pio::{
   JmpCondition,
   WaitSource,
   InSource,
@@ -11,13 +10,13 @@ use crate::{
   MovOperation,
   MovSource,
   SetDestination,
-  parser::{
-    Line,
-    Value,
-    ParsedDirective,
-    ParsedInstruction,
-    ParsedOperands,
-  },
+};
+use crate::{
+  Line,
+  Value,
+  ParsedDirective,
+  ParsedInstruction,
+  ParsedOperands,
 };
 
 grammar();

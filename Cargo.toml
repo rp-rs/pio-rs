@@ -3,19 +3,16 @@ name = "pio"
 version = "0.1.0"
 authors = ["snek"]
 edition = "2018"
+resolver = "2"
 
 [workspace]
-members = ["pio-proc"]
+members = ["pio-proc", "pio-parser"]
 
 [dependencies]
 paste = "1.0"
-lalrpop-util = { git = "https://github.com/lalrpop/lalrpop.git", rev = "a8afe7d" }
-hashbrown = "0.9"
-
-[build-dependencies]
-lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", rev = "a8afe7d" }
 
 [dev-dependencies]
 test-generator = "0.3.0"
 pretty_assertions = "0.6"
 pio-proc = { path = "./pio-proc" }
+pio-parser = { path = "./pio-parser" }
