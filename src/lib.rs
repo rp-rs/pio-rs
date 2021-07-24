@@ -22,11 +22,12 @@
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::upper_case_acronyms)]
 
-// pub because the proc macro needs it
-#[doc(hidden)]
-pub extern crate alloc;
+use arrayvec::ArrayVec;
 
-use alloc::vec::Vec;
+/// Maximum program size in bytes.
+///
+/// See Chapter 3, Figure 38 for reference of the value.
+const MAX_PROGRAM_SIZE: usize = 32;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -306,7 +307,7 @@ impl Drop for Label {
 }
 
 /// Data for 'side' set instruction parameters.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SideSet {
     opt: bool,
     bits: u8,
@@ -347,13 +348,19 @@ impl SideSet {
     }
 }
 
+impl Default for SideSet {
+    fn default() -> Self {
+        SideSet::new(false, 0, false)
+    }
+}
+
 /// A PIO Assembler. See chapter three of the [RP2040 Datasheet][].
 ///
 /// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
 #[derive(Debug)]
 pub struct Assembler {
     #[doc(hidden)]
-    pub instructions: Vec<Instruction>,
+    pub instructions: ArrayVec<Instruction, MAX_PROGRAM_SIZE>,
     #[doc(hidden)]
     pub side_set: SideSet,
     delay_max: u8,
@@ -363,7 +370,7 @@ impl Assembler {
     /// Create a new Assembler.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Assembler {
-        Assembler::new_with_side_set(SideSet::new(false, 0, false))
+        Assembler::new_with_side_set(SideSet::default())
     }
 
     /// Create a new Assembler with `SideSet` settings.
@@ -371,15 +378,23 @@ impl Assembler {
     pub fn new_with_side_set(side_set: SideSet) -> Assembler {
         let delay_max = (1 << (5 - side_set.bits)) - 1;
         Assembler {
-            instructions: Vec::new(),
+            instructions: ArrayVec::new(),
             side_set,
             delay_max,
         }
     }
 
     /// Assemble the program into PIO instructions.
-    pub fn assemble(self) -> Vec<u16> {
-        self.instructions.iter().map(|i| i.encode(&self)).collect()
+    pub fn assemble(self) -> Program {
+        Program {
+            instructions: self.instructions.iter().map(|i| i.encode(&self)).collect(),
+            origin: None,
+            wrap: Wrap {
+                source: (self.instructions.len() - 1) as u8,
+                target: 0,
+            },
+            side_set: self.side_set,
+        }
     }
 }
 
@@ -538,6 +553,37 @@ impl Assembler {
             }
         }
     );
+}
+
+/// Source and target for automatic program wrapping.
+///
+/// After the instruction at offset pointed by [`source`] has been executed, the program control flow jumps to the
+/// instruction pointed by [`target`]. If the instruction is a jump, and the condition is true, the jump takes priority.
+///
+/// [`source`]: Self::source
+/// [`target`]: Self::target
+#[derive(Debug, Clone, Copy)]
+pub struct Wrap {
+    /// Source instruction for wrap.
+    pub source: u8,
+    /// Target instruction for wrap.
+    pub target: u8,
+}
+
+/// Program ready to be executed by PIO hardware.
+
+#[derive(Debug)]
+pub struct Program {
+    /// Assembled instructions.
+    pub instructions: ArrayVec<u16, MAX_PROGRAM_SIZE>,
+    /// Offset at which the program must be loaded.
+    ///
+    /// Most often 0 if defined. This might be needed when using data based JMPs.
+    pub origin: Option<u8>,
+    /// Wrapping behavior of this program.
+    pub wrap: Wrap,
+    /// Side-set info for this program.
+    pub side_set: SideSet,
 }
 
 #[test]
