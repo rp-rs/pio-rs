@@ -385,14 +385,39 @@ impl Assembler {
     }
 
     /// Assemble the program into PIO instructions.
-    pub fn assemble(self) -> Program {
+    ///
+    /// Takes optional pair of labels controlling the wrapping. The first label is the source (top) of the wrap while
+    /// the second label is the target (bottom) of the wrap.
+    ///
+    /// If no labels are provided, the program wraps from after the last instruction to the top of the program.
+    pub fn assemble(self, wrap: Option<(Label, Label)>) -> Program {
+        let wrap = if let Some((source, target)) = wrap {
+            let source = match source.state {
+                LabelState::Bound(addr) => addr,
+                LabelState::Unbound(_) => panic!("source label can't be unbound"),
+            };
+            let target = match target.state {
+                LabelState::Bound(addr) => addr,
+                LabelState::Unbound(_) => panic!("target label can't be unbound"),
+            };
+
+            Wrap {
+                // We need to subtract one here as the label is positioned _after_ the instruction we want to wrap from,
+                // but the hardware wants the index of that instruction.
+                source: source - 1,
+                target,
+            }
+        } else {
+            Wrap {
+                source: (self.instructions.len() - 1) as u8,
+                target: 0,
+            }
+        };
+
         Program {
             instructions: self.instructions.iter().map(|i| i.encode(&self)).collect(),
             origin: None,
-            wrap: Wrap {
-                source: (self.instructions.len() - 1) as u8,
-                target: 0,
-            },
+            wrap,
             side_set: self.side_set,
         }
     }
