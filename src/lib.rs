@@ -14,7 +14,23 @@
 //! a.out(pio::OutDestination::PINS, 1);
 //! a.jmp(pio::JmpCondition::Always, &mut loop_label);
 //!
-//! let program = a.assemble();
+//! let program = a.assemble(None);
+//! ```
+//!
+//! # Wrapping
+//! ```rust
+//! let mut a = pio::Assembler::new();
+//!
+//! let mut wrap_source = a.label();
+//! let mut wrap_target = a.label();
+//!
+//! // Initialize pins only once
+//! a.set(pio::SetDestination::PINDIRS, 1);
+//! a.bind(&mut wrap_target);
+//! a.out(pio::OutDestination::PINS, 1);
+//! a.bind(&mut wrap_source);
+//!
+//! let program = a.assemble(Some((wrap_source, wrap_target)));
 //! ```
 
 #![no_std]
@@ -390,7 +406,7 @@ impl Assembler {
     /// the second label is the target (bottom) of the wrap.
     ///
     /// If no labels are provided, the program wraps from after the last instruction to the top of the program.
-    pub fn assemble(self, wrap: Option<(Label, Label)>) -> Program {
+    pub fn assemble(self, wrap: Option<(Label, Label)>) -> Program<()> {
         let wrap = if let Some((source, target)) = wrap {
             let source = match source.state {
                 LabelState::Bound(addr) => addr,
@@ -419,6 +435,7 @@ impl Assembler {
             origin: None,
             wrap,
             side_set: self.side_set,
+            public_defines: (),
         }
     }
 }
@@ -428,6 +445,13 @@ impl Assembler {
     pub fn label(&mut self) -> Label {
         Label {
             state: LabelState::Unbound(core::u8::MAX),
+        }
+    }
+
+    /// Create a new label bound to given offset.
+    pub fn label_at_offset(&mut self, offset: u8) -> Label {
+        Label {
+            state: LabelState::Bound(offset),
         }
     }
 
@@ -587,7 +611,7 @@ impl Assembler {
 ///
 /// [`source`]: Self::source
 /// [`target`]: Self::target
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Wrap {
     /// Source instruction for wrap.
     pub source: u8,
@@ -598,7 +622,7 @@ pub struct Wrap {
 /// Program ready to be executed by PIO hardware.
 
 #[derive(Debug)]
-pub struct Program {
+pub struct Program<PublicDefines> {
     /// Assembled instructions.
     pub instructions: ArrayVec<u16, MAX_PROGRAM_SIZE>,
     /// Offset at which the program must be loaded.
@@ -609,6 +633,27 @@ pub struct Program {
     pub wrap: Wrap,
     /// Side-set info for this program.
     pub side_set: SideSet,
+    /// Public defines for the program.
+    pub public_defines: PublicDefines,
+}
+
+impl<P> Program<P> {
+    pub fn set_origin(self, origin: Option<u8>) -> Self {
+        Self { origin, ..self }
+    }
+
+    pub fn set_public_defines<PublicDefines>(
+        self,
+        public_defines: PublicDefines,
+    ) -> Program<PublicDefines> {
+        Program {
+            instructions: self.instructions,
+            origin: self.origin,
+            wrap: self.wrap,
+            side_set: self.side_set,
+            public_defines,
+        }
+    }
 }
 
 #[test]
@@ -622,7 +667,7 @@ fn test_jump_1() {
     a.jmp(JmpCondition::Always, &mut l);
 
     assert_eq!(
-        a.assemble(),
+        a.assemble(None).instructions.as_slice(),
         &[
             0b111_00000_001_00000, // SET X 0
             // L:
@@ -646,7 +691,7 @@ fn test_jump_2() {
     a.set(SetDestination::Y, 1);
 
     assert_eq!(
-        a.assemble(),
+        a.assemble(None).instructions.as_slice(),
         &[
             // TOP:
             0b111_00000_010_00000, // SET Y 0
@@ -655,6 +700,46 @@ fn test_jump_2() {
             // BOTTOM:
             0b111_00000_010_00001, // SET Y 1
         ]
+    );
+}
+
+#[test]
+fn test_wrap() {
+    let mut a = Assembler::new();
+
+    let mut source = a.label();
+    let mut target = a.label();
+
+    a.set(SetDestination::PINDIRS, 0);
+    a.bind(&mut target);
+    a.r#in(InSource::NULL, 1);
+    a.push(false, false);
+    a.bind(&mut source);
+    a.jmp(JmpCondition::Always, &mut target);
+
+    assert_eq!(
+        a.assemble(Some((source, target))).wrap,
+        Wrap {
+            source: 2,
+            target: 1,
+        }
+    );
+}
+
+#[test]
+fn test_default_wrap() {
+    let mut a = Assembler::new();
+
+    a.set(SetDestination::PINDIRS, 0);
+    a.r#in(InSource::NULL, 1);
+    a.push(false, false);
+
+    assert_eq!(
+        a.assemble(None).wrap,
+        Wrap {
+            source: 2,
+            target: 0,
+        }
     );
 }
 
@@ -667,7 +752,7 @@ macro_rules! instr_test {
                 a.$name(
                     $( $v ),*
                 );
-                let a = a.assemble()[0];
+                let a = a.assemble(None).instructions[0];
                 let b = $b;
                 if a != b {
                     panic!("assertion failure: (left == right)\nleft:  {:#016b}\nright: {:#016b}", a, b);

@@ -6,9 +6,15 @@ fn test_pio_proc() {
         jmp label
     "
     );
-    assert_eq!(p.origin(), None);
-    assert_eq!(p.code(), &[0]);
-    assert_eq!(p.wrap(), (0, 0));
+    assert_eq!(p.origin, None);
+    assert_eq!(&*p.instructions, &[0u16]);
+    assert_eq!(
+        p.wrap,
+        pio::Wrap {
+            source: 0,
+            target: 0
+        }
+    );
 }
 
 #[test]
@@ -24,9 +30,15 @@ fn test_pio_proc2() {
     .define public owo label + 2
     "
     );
-    assert_eq!(p.origin(), Some(5));
-    assert_eq!(p.code(), &[0, 0]);
-    assert_eq!(p.wrap(), (0, 0));
-    assert_eq!(p.public_defines().label, 0);
-    assert_eq!(p.public_defines().owo, 2);
+    assert_eq!(p.origin, Some(5));
+    assert_eq!(&*p.instructions, &[0, 0]);
+    assert_eq!(
+        p.wrap,
+        pio::Wrap {
+            source: 0,
+            target: 0
+        }
+    );
+    assert_eq!(p.public_defines.label, 0);
+    assert_eq!(p.public_defines.owo, 2);
 }

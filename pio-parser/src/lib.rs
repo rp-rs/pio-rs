@@ -4,7 +4,7 @@
 
 use pio::{
     InSource, Instruction, InstructionOperands, JmpCondition, MovDestination, MovOperation,
-    MovSource, OutDestination, SetDestination, WaitSource,
+    MovSource, OutDestination, Program, SetDestination, WaitSource,
 };
 
 use std::collections::HashMap;
@@ -232,40 +232,14 @@ impl<'a> ProgramState<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct Program<PublicDefines> {
-    origin: Option<u8>,
-    code: Vec<u16>,
-    wrap: (u8, u8),
-    side_set: pio::SideSet,
-    public_defines: PublicDefines,
-}
-
-impl<P> Program<P> {
-    #[doc(hidden)]
-    pub fn new_from_proc_macro(
-        origin: Option<u8>,
-        code: Vec<u16>,
-        wrap: (u8, u8),
-        side_set: pio::SideSet,
-        public_defines: P,
-    ) -> Self {
-        Program {
-            origin,
-            code,
-            wrap,
-            side_set,
-            public_defines,
-        }
-    }
-}
-
 type ParseError<'input> = lalrpop_util::ParseError<usize, parser::Token<'input>, &'static str>;
 
-impl Program<HashMap<String, i32>> {
+pub struct Parser;
+
+impl Parser {
     /// Parse a PIO "file", which contains some number of PIO programs
     /// separated by `.program` directives.
-    pub fn parse_file(source: &str) -> Result<Vec<Self>, ParseError> {
+    pub fn parse_file(source: &str) -> Result<Vec<Program<HashMap<String, i32>>>, ParseError> {
         match parser::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
@@ -286,24 +260,21 @@ impl Program<HashMap<String, i32>> {
                     }
                 }
 
-                Ok(f.1
-                    .iter()
-                    .map(|p| Program::process(p, &mut state))
-                    .collect())
+                Ok(f.1.iter().map(|p| Parser::process(p, &mut state)).collect())
             }
             Err(e) => Err(e),
         }
     }
 
     /// Parse a single PIO program, without the `.program` directive.
-    pub fn parse_program(source: &str) -> Result<Self, ParseError> {
+    pub fn parse_program(source: &str) -> Result<Program<HashMap<String, i32>>, ParseError> {
         match parser::ProgramParser::new().parse(source) {
-            Ok(p) => Ok(Program::process(&p, &mut FileState::default())),
+            Ok(p) => Ok(Parser::process(&p, &mut FileState::default())),
             Err(e) => Err(e),
         }
     }
 
-    fn process(p: &[Line], file_state: &mut FileState) -> Self {
+    fn process(p: &[Line], file_state: &mut FileState) -> Program<HashMap<String, i32>> {
         let mut state = ProgramState::new(file_state);
 
         // first pass
@@ -356,7 +327,7 @@ impl Program<HashMap<String, i32>> {
                     }
                     ParsedDirective::Wrap => {
                         assert!(wrap == None);
-                        wrap = Some(instr_index - 1);
+                        wrap = Some(instr_index);
                     }
                     _ => {}
                 },
@@ -378,46 +349,18 @@ impl Program<HashMap<String, i32>> {
         }
 
         let side_set = a.side_set.clone();
-        let code = a.assemble();
+        let wrap = match (wrap, wrap_target) {
+            (Some(wrap_source), Some(wrap_target)) => Some((
+                a.label_at_offset(wrap_source),
+                a.label_at_offset(wrap_target),
+            )),
+            (None, None) => None,
+            _ => panic!("must define either both or neither of wrap and wrap_target, but not only one of them"),
+        };
 
-        Program {
-            origin,
-            wrap: match wrap_target {
-                Some(t) => (t, wrap.unwrap()),
-                None => (0, code.len() as u8 - 1),
-            },
-            code,
-            side_set,
-            public_defines: state.public_defines(),
-        }
-    }
-}
-
-impl<P> Program<P> {
-    /// Get the optional origin of this program. If
-    /// not present, the program may be loaded to any
-    /// offset in PIO instruction memory.
-    pub fn origin(&self) -> Option<u8> {
-        self.origin
-    }
-
-    /// Get the assembled code of this program.
-    pub fn code(&self) -> &[u16] {
-        &self.code
-    }
-
-    /// Get the wrap setting of this program
-    pub fn wrap(&self) -> (u8, u8) {
-        self.wrap
-    }
-
-    pub fn side_set(&self) -> &pio::SideSet {
-        &self.side_set
-    }
-
-    /// Get the publicly exposed defines of this program.
-    pub fn public_defines(&self) -> &P {
-        &self.public_defines
+        a.assemble(wrap)
+            .set_origin(origin)
+            .set_public_defines(state.public_defines())
     }
 }
 

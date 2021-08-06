@@ -5,7 +5,7 @@ extern crate pretty_assertions;
 fn test(test: &str) {
     let path = std::path::PathBuf::from(test);
     let program_source = std::fs::read_to_string(&path).unwrap();
-    let programs = pio_parser::Program::parse_file(&program_source).unwrap();
+    let programs = pio_parser::Parser::parse_file(&program_source).unwrap();
 
     let mut hex_path = path;
     hex_path.set_extension("hex");
@@ -24,7 +24,7 @@ fn test(test: &str) {
         }
 
         for (i, h) in hex_programs.iter().enumerate() {
-            assert_eq!(programs[i].code(), h);
+            assert_eq!(&*programs[i].instructions, h);
         }
     }
 }
