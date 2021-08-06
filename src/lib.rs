@@ -432,7 +432,7 @@ impl Assembler {
         };
 
         Program {
-            instructions: self.instructions.iter().map(|i| i.encode(&self)).collect(),
+            code: self.instructions.iter().map(|i| i.encode(&self)).collect(),
             origin: None,
             wrap,
             side_set: self.side_set,
@@ -624,8 +624,8 @@ pub struct Wrap {
 
 #[derive(Debug)]
 pub struct Program<PublicDefines> {
-    /// Assembled instructions.
-    pub instructions: ArrayVec<u16, MAX_PROGRAM_SIZE>,
+    /// Assembled program code.
+    pub code: ArrayVec<u16, MAX_PROGRAM_SIZE>,
     /// Offset at which the program must be loaded.
     ///
     /// Most often 0 if defined. This might be needed when using data based JMPs.
@@ -648,7 +648,7 @@ impl<P> Program<P> {
         public_defines: PublicDefines,
     ) -> Program<PublicDefines> {
         Program {
-            instructions: self.instructions,
+            code: self.code,
             origin: self.origin,
             wrap: self.wrap,
             side_set: self.side_set,
@@ -668,7 +668,7 @@ fn test_jump_1() {
     a.jmp(JmpCondition::Always, &mut l);
 
     assert_eq!(
-        a.assemble(None).instructions.as_slice(),
+        a.assemble(None).code.as_slice(),
         &[
             0b111_00000_001_00000, // SET X 0
             // L:
@@ -692,7 +692,7 @@ fn test_jump_2() {
     a.set(SetDestination::Y, 1);
 
     assert_eq!(
-        a.assemble(None).instructions.as_slice(),
+        a.assemble(None).code.as_slice(),
         &[
             // TOP:
             0b111_00000_010_00000, // SET Y 0
@@ -753,7 +753,7 @@ macro_rules! instr_test {
                 a.$name(
                     $( $v ),*
                 );
-                let a = a.assemble(None).instructions[0];
+                let a = a.assemble(None).code[0];
                 let b = $b;
                 if a != b {
                     panic!("assertion failure: (left == right)\nleft:  {:#016b}\nright: {:#016b}", a, b);

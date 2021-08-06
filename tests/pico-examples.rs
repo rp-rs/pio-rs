@@ -24,7 +24,7 @@ fn test(test: &str) {
         }
 
         for (i, h) in hex_programs.iter().enumerate() {
-            assert_eq!(&*programs[i].instructions, h);
+            assert_eq!(&*programs[i].code, h);
         }
     }
 }

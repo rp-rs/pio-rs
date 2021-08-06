@@ -11,9 +11,9 @@ pub fn pio(item: TokenStream) -> TokenStream {
     let result = match pio_parser::Parser::parse_program(&source.value()) {
         Ok(p) => {
             let origin: proc_macro2::TokenStream = format!("{:?}", p.origin).parse().unwrap();
-            let instructions: proc_macro2::TokenStream = format!(
+            let code: proc_macro2::TokenStream = format!(
                 "::std::iter::IntoIterator::into_iter([{}]).collect()",
-                p.instructions
+                p.code
                     .iter()
                     .map(|v| v.to_string())
                     .collect::<Vec<String>>()
@@ -21,8 +21,12 @@ pub fn pio(item: TokenStream) -> TokenStream {
             )
             .parse()
             .unwrap();
-            let wrap: proc_macro2::TokenStream =
-                format!("::pio::Wrap {{source: {}, target: {}}}", p.wrap.source, p.wrap.target).parse().unwrap();
+            let wrap: proc_macro2::TokenStream = format!(
+                "::pio::Wrap {{source: {}, target: {}}}",
+                p.wrap.source, p.wrap.target
+            )
+            .parse()
+            .unwrap();
             let side_set: proc_macro2::TokenStream = format!(
                 "::pio::SideSet::new_from_proc_macro({}, {}, {})",
                 p.side_set.optional(),
@@ -63,7 +67,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 {
                     #defines_struct
                     ::pio::Program{
-                        instructions: #instructions,
+                        code: #code,
                         origin: #origin,
                         wrap: #wrap,
                         side_set: #side_set,

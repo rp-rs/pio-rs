@@ -348,7 +348,6 @@ impl Parser {
             }
         }
 
-        let side_set = a.side_set.clone();
         let wrap = match (wrap, wrap_target) {
             (Some(wrap_source), Some(wrap_target)) => Some((
                 a.label_at_offset(wrap_source),

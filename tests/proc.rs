@@ -7,7 +7,7 @@ fn test_pio_proc() {
     "
     );
     assert_eq!(p.origin, None);
-    assert_eq!(&*p.instructions, &[0u16]);
+    assert_eq!(&*p.code, &[0u16]);
     assert_eq!(
         p.wrap,
         pio::Wrap {
@@ -31,7 +31,7 @@ fn test_pio_proc2() {
     "
     );
     assert_eq!(p.origin, Some(5));
-    assert_eq!(&*p.instructions, &[0, 0]);
+    assert_eq!(&*p.code, &[0, 0]);
     assert_eq!(
         p.wrap,
         pio::Wrap {
