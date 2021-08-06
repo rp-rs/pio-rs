@@ -1,4 +1,4 @@
-//! PIO
+//! # Programmable Input/Output
 //!
 //! ```rust
 //! // Repeatedly get one word of data from the TX FIFO, stalling when
@@ -17,14 +17,14 @@
 //! let program = a.assemble(None);
 //! ```
 //!
-//! # Wrapping
+//! ## Wrapping
 //! ```rust
 //! let mut a = pio::Assembler::new();
 //!
 //! let mut wrap_source = a.label();
 //! let mut wrap_target = a.label();
 //!
-//! // Initialize pins only once
+//! // Initialize pin direction only once
 //! a.set(pio::SetDestination::PINDIRS, 1);
 //! a.bind(&mut wrap_target);
 //! a.out(pio::OutDestination::PINS, 1);
@@ -262,6 +262,7 @@ impl InstructionOperands {
     }
 }
 
+/// A PIO instruction.
 #[derive(Debug)]
 pub struct Instruction {
     pub operands: InstructionOperands,
