@@ -621,16 +621,15 @@ pub struct Wrap {
 }
 
 /// Program ready to be executed by PIO hardware.
-
 #[derive(Debug)]
 pub struct Program<PublicDefines> {
     /// Assembled program code.
     pub code: ArrayVec<u16, MAX_PROGRAM_SIZE>,
     /// Offset at which the program must be loaded.
     ///
-    /// Most often 0 if defined. This might be needed when using data based JMPs.
+    /// Most often 0 if defined. This might be needed when using data based `JMP`s.
     pub origin: Option<u8>,
-    /// Wrapping behavior of this program.
+    /// Wrapping behavior for this program.
     pub wrap: Wrap,
     /// Side-set info for this program.
     pub side_set: SideSet,
