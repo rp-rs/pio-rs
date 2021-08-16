@@ -9,11 +9,15 @@ use syn::parse_macro_input;
 pub fn pio(item: TokenStream) -> TokenStream {
     let source = parse_macro_input!(item as syn::LitStr);
     let result = match pio_parser::Parser::parse_program(&source.value()) {
-        Ok(p) => {
-            let origin: proc_macro2::TokenStream = format!("{:?}", p.origin).parse().unwrap();
+        Ok(pio_parser::Program {
+            program,
+            public_defines,
+        }) => {
+            let origin: proc_macro2::TokenStream = format!("{:?}", program.origin).parse().unwrap();
             let code: proc_macro2::TokenStream = format!(
                 "::std::iter::IntoIterator::into_iter([{}]).collect()",
-                p.code
+                program
+                    .code
                     .iter()
                     .map(|v| v.to_string())
                     .collect::<Vec<String>>()
@@ -23,15 +27,15 @@ pub fn pio(item: TokenStream) -> TokenStream {
             .unwrap();
             let wrap: proc_macro2::TokenStream = format!(
                 "::pio::Wrap {{source: {}, target: {}}}",
-                p.wrap.source, p.wrap.target
+                program.wrap.source, program.wrap.target
             )
             .parse()
             .unwrap();
             let side_set: proc_macro2::TokenStream = format!(
                 "::pio::SideSet::new_from_proc_macro({}, {}, {})",
-                p.side_set.optional(),
-                p.side_set.bits(),
-                p.side_set.pindirs()
+                program.side_set.optional(),
+                program.side_set.bits(),
+                program.side_set.pindirs()
             )
             .parse()
             .unwrap();
@@ -41,7 +45,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 {}
             }}
             ",
-                p.public_defines
+                public_defines
                     .keys()
                     .map(|k| format!("{}: i32,", k))
                     .collect::<Vec<String>>()
@@ -55,7 +59,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 {}
             }}
             ",
-                p.public_defines
+                public_defines
                     .iter()
                     .map(|(k, v)| format!("{}: {},", k, v))
                     .collect::<Vec<String>>()
@@ -66,11 +70,13 @@ pub fn pio(item: TokenStream) -> TokenStream {
             quote! {
                 {
                     #defines_struct
-                    ::pio::Program{
-                        code: #code,
-                        origin: #origin,
-                        wrap: #wrap,
-                        side_set: #side_set,
+                    ::pio_parser::Program {
+                        program: ::pio::Program {
+                            code: #code,
+                            origin: #origin,
+                            wrap: #wrap,
+                            side_set: #side_set,
+                        },
                         public_defines: #defines_init,
                     }
                 }

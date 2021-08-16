@@ -4,7 +4,7 @@
 
 use pio::{
     InSource, Instruction, InstructionOperands, JmpCondition, MovDestination, MovOperation,
-    MovSource, OutDestination, Program, SetDestination, WaitSource,
+    MovSource, OutDestination, SetDestination, WaitSource,
 };
 
 use std::collections::HashMap;
@@ -327,7 +327,7 @@ impl Parser {
                     }
                     ParsedDirective::Wrap => {
                         assert!(wrap == None);
-                        wrap = Some(instr_index);
+                        wrap = Some(instr_index - 1);
                     }
                     _ => {}
                 },
@@ -348,19 +348,32 @@ impl Parser {
             }
         }
 
-        let wrap = match (wrap, wrap_target) {
-            (Some(wrap_source), Some(wrap_target)) => Some((
-                a.label_at_offset(wrap_source),
-                a.label_at_offset(wrap_target),
-            )),
-            (None, None) => None,
-            _ => panic!("must define either both or neither of wrap and wrap_target, but not only one of them"),
+        let program = a.assemble_program().set_origin(origin);
+
+        let program = match (wrap, wrap_target) {
+            (Some(wrap_source), Some(wrap_target)) => program.set_wrap(pio::Wrap {
+                source: wrap_source,
+                target: wrap_target,
+            }),
+            (None, None) => program,
+            _ => panic!(
+                "must define either both or neither of wrap and wrap_target, but not only one of them"
+            ),
         };
 
-        a.assemble(wrap)
-            .set_origin(origin)
-            .set_public_defines(state.public_defines())
+        Program {
+            program,
+            public_defines: state.public_defines(),
+        }
     }
+}
+
+/// Parsed program with defines.
+pub struct Program<PublicDefines> {
+    /// The compiled program.
+    pub program: pio::Program,
+    /// Public defines.
+    pub public_defines: PublicDefines,
 }
 
 #[test]
