@@ -8,7 +8,9 @@ use syn::parse_macro_input;
 #[proc_macro]
 pub fn pio(item: TokenStream) -> TokenStream {
     let source = parse_macro_input!(item as syn::LitStr);
-    let result = match pio_parser::Parser::parse_program(&source.value()) {
+    let result = match pio_parser::Parser::<{ pio::RP2040_MAX_PROGRAM_SIZE }>::parse_program(
+        &source.value(),
+    ) {
         Ok(pio_parser::Program {
             program,
             public_defines,
@@ -71,7 +73,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 {
                     #defines_struct
                     ::pio_parser::Program {
-                        program: ::pio::Program {
+                        program: ::pio::Program::<{ ::pio::RP2040_MAX_PROGRAM_SIZE }> {
                             code: #code,
                             origin: #origin,
                             wrap: #wrap,

@@ -234,12 +234,14 @@ impl<'a> ProgramState<'a> {
 
 type ParseError<'input> = lalrpop_util::ParseError<usize, parser::Token<'input>, &'static str>;
 
-pub struct Parser;
+pub struct Parser<const PROGRAM_SIZE: usize>;
 
-impl Parser {
+impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
     /// Parse a PIO "file", which contains some number of PIO programs
     /// separated by `.program` directives.
-    pub fn parse_file(source: &str) -> Result<Vec<Program<HashMap<String, i32>>>, ParseError> {
+    pub fn parse_file(
+        source: &str,
+    ) -> Result<Vec<Program<HashMap<String, i32>, PROGRAM_SIZE>>, ParseError> {
         match parser::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
@@ -267,14 +269,19 @@ impl Parser {
     }
 
     /// Parse a single PIO program, without the `.program` directive.
-    pub fn parse_program(source: &str) -> Result<Program<HashMap<String, i32>>, ParseError> {
+    pub fn parse_program(
+        source: &str,
+    ) -> Result<Program<HashMap<String, i32>, PROGRAM_SIZE>, ParseError> {
         match parser::ProgramParser::new().parse(source) {
             Ok(p) => Ok(Parser::process(&p, &mut FileState::default())),
             Err(e) => Err(e),
         }
     }
 
-    fn process(p: &[Line], file_state: &mut FileState) -> Program<HashMap<String, i32>> {
+    fn process(
+        p: &[Line],
+        file_state: &mut FileState,
+    ) -> Program<HashMap<String, i32>, PROGRAM_SIZE> {
         let mut state = ProgramState::new(file_state);
 
         // first pass
@@ -369,9 +376,9 @@ impl Parser {
 }
 
 /// Parsed program with defines.
-pub struct Program<PublicDefines> {
+pub struct Program<PublicDefines, const PROGRAM_SIZE: usize> {
     /// The compiled program.
-    pub program: pio::Program,
+    pub program: pio::Program<PROGRAM_SIZE>,
     /// Public defines.
     pub public_defines: PublicDefines,
 }

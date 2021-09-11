@@ -5,7 +5,7 @@
 //! // the FIFO is empty. Write the least significant bit to the OUT pin
 //! // group.
 //! // https://github.com/raspberrypi/pico-examples/tree/master/pio/hello_pio/hello.pio
-//! let mut a = pio::Assembler::new();
+//! let mut a = pio::Assembler::<{ pio::RP2040_MAX_PROGRAM_SIZE }>::new();
 //!
 //! let mut loop_label = a.label();
 //!
@@ -19,7 +19,7 @@
 //!
 //! ## Wrapping
 //! ```rust
-//! let mut a = pio::Assembler::new();
+//! let mut a = pio::Assembler::<{ pio::RP2040_MAX_PROGRAM_SIZE }>::new();
 //!
 //! let mut wrap_source = a.label();
 //! let mut wrap_target = a.label();
@@ -40,10 +40,10 @@
 
 pub use arrayvec::ArrayVec;
 
-/// Maximum program size in bytes.
+/// Maximum program size of RP2040 chip, in bytes.
 ///
 /// See Chapter 3, Figure 38 for reference of the value.
-pub const MAX_PROGRAM_SIZE: usize = 32;
+pub const RP2040_MAX_PROGRAM_SIZE: usize = 32;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -271,7 +271,7 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    fn encode(&self, a: &Assembler) -> u16 {
+    fn encode<const PROGRAM_SIZE: usize>(&self, a: &Assembler<PROGRAM_SIZE>) -> u16 {
         let mut data = self.operands.encode();
 
         if self.delay > a.delay_max {
@@ -375,24 +375,24 @@ impl Default for SideSet {
 ///
 /// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
 #[derive(Debug)]
-pub struct Assembler {
+pub struct Assembler<const PROGRAM_SIZE: usize> {
     #[doc(hidden)]
-    pub instructions: ArrayVec<Instruction, MAX_PROGRAM_SIZE>,
+    pub instructions: ArrayVec<Instruction, PROGRAM_SIZE>,
     #[doc(hidden)]
     pub side_set: SideSet,
     delay_max: u8,
 }
 
-impl Assembler {
+impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// Create a new Assembler.
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Assembler {
+    pub fn new() -> Self {
         Assembler::new_with_side_set(SideSet::default())
     }
 
     /// Create a new Assembler with `SideSet` settings.
     #[allow(clippy::new_without_default)]
-    pub fn new_with_side_set(side_set: SideSet) -> Assembler {
+    pub fn new_with_side_set(side_set: SideSet) -> Self {
         let delay_max = (1 << (5 - side_set.bits)) - 1;
         Assembler {
             instructions: ArrayVec::new(),
@@ -402,7 +402,7 @@ impl Assembler {
     }
 
     /// Assemble the program into PIO instructions.
-    pub fn assemble(self) -> ArrayVec<u16, MAX_PROGRAM_SIZE> {
+    pub fn assemble(self) -> ArrayVec<u16, PROGRAM_SIZE> {
         self.instructions.iter().map(|i| i.encode(&self)).collect()
     }
 
@@ -411,7 +411,7 @@ impl Assembler {
     /// The program contains the instructions and side-set info set. You can directly compile into a program with
     /// correct wrapping with [`Self::assemble_with_wrap`], or you can set the wrapping after the compilation with
     /// [`Program::set_wrap`].
-    pub fn assemble_program(self) -> Program {
+    pub fn assemble_program(self) -> Program<PROGRAM_SIZE> {
         let side_set = self.side_set;
         let code = self.assemble();
         let wrap = Wrap {
@@ -432,7 +432,7 @@ impl Assembler {
     /// Takes pair of labels controlling the wrapping. The first label is the source (top) of the wrap while the second
     /// label is the target (bottom) of the wrap. The source label should be positioned _after_ the instruction from
     /// which the wrapping happens.
-    pub fn assemble_with_wrap(self, source: Label, target: Label) -> Program {
+    pub fn assemble_with_wrap(self, source: Label, target: Label) -> Program<PROGRAM_SIZE> {
         let source = self.label_offset(&source) - 1;
         let target = self.label_offset(&target);
         self.assemble_program().set_wrap(Wrap { source, target })
@@ -447,7 +447,7 @@ impl Assembler {
     }
 }
 
-impl Assembler {
+impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// Create a new unbound Label.
     pub fn label(&mut self) -> Label {
         Label {
@@ -511,7 +511,7 @@ macro_rules! instr {
     }
 }
 
-impl Assembler {
+impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     instr!(
         /// Emit a `jmp` instruction to `label` for `condition`.
         jmp(self, condition: JmpCondition, label: &mut Label) {
@@ -628,9 +628,9 @@ pub struct Wrap {
 
 /// Program ready to be executed by PIO hardware.
 #[derive(Debug)]
-pub struct Program {
+pub struct Program<const PROGRAM_SIZE: usize> {
     /// Assembled program code.
-    pub code: ArrayVec<u16, MAX_PROGRAM_SIZE>,
+    pub code: ArrayVec<u16, PROGRAM_SIZE>,
     /// Offset at which the program must be loaded.
     ///
     /// Most often 0 if defined. This might be needed when using data based `JMP`s.
@@ -641,7 +641,7 @@ pub struct Program {
     pub side_set: SideSet,
 }
 
-impl Program {
+impl<const PROGRAM_SIZE: usize> Program<PROGRAM_SIZE> {
     /// Set the program loading location.
     ///
     /// If `None`, the program can be loaded at any location in the instruction memory.
@@ -659,7 +659,7 @@ impl Program {
 
 #[test]
 fn test_jump_1() {
-    let mut a = Assembler::new();
+    let mut a = Assembler::<32>::new();
 
     let mut l = a.label();
     a.set(SetDestination::X, 0);
@@ -680,7 +680,7 @@ fn test_jump_1() {
 
 #[test]
 fn test_jump_2() {
-    let mut a = Assembler::new();
+    let mut a = Assembler::<32>::new();
 
     let mut top = a.label();
     let mut bottom = a.label();
@@ -706,7 +706,7 @@ fn test_jump_2() {
 
 #[test]
 fn test_assemble_with_wrap() {
-    let mut a = Assembler::new();
+    let mut a = Assembler::<32>::new();
 
     let mut source = a.label();
     let mut target = a.label();
@@ -729,7 +729,7 @@ fn test_assemble_with_wrap() {
 
 #[test]
 fn test_assemble_program_default_wrap() {
-    let mut a = Assembler::new();
+    let mut a = Assembler::<32>::new();
 
     a.set(SetDestination::PINDIRS, 0);
     a.r#in(InSource::NULL, 1);
@@ -749,7 +749,7 @@ macro_rules! instr_test {
         paste::paste! {
             #[test]
             fn [< test _ $name _ $b >]() {
-                let mut a = Assembler::new_with_side_set($side_set);
+                let mut a = Assembler::<32>::new_with_side_set($side_set);
                 a.$name(
                     $( $v ),*
                 );
