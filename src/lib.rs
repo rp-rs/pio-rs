@@ -271,27 +271,29 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    fn encode<const PROGRAM_SIZE: usize>(&self, a: &Assembler<PROGRAM_SIZE>) -> u16 {
+    /// Encode a single instruction.
+    pub fn encode(&self, side_set: SideSet) -> u16 {
+        let delay_max = (1 << (5 - side_set.bits)) - 1;
         let mut data = self.operands.encode();
 
-        if self.delay > a.delay_max {
+        if self.delay > delay_max {
             panic!(
                 "delay of {} is greater than limit {}",
-                self.delay, a.delay_max
+                self.delay, delay_max
             );
         }
 
         let side_set = if let Some(s) = self.side_set {
-            if s > a.side_set.max {
-                panic!("'side' set must be >=0 and <={}", a.side_set.max);
+            if s > side_set.max {
+                panic!("'side' set must be >=0 and <={}", side_set.max);
             }
-            let s = (s as u16) << (5 - a.side_set.bits);
-            if a.side_set.opt {
+            let s = (s as u16) << (5 - side_set.bits);
+            if side_set.opt {
                 s | 0b10000
             } else {
                 s
             }
-        } else if a.side_set.bits > 0 && !a.side_set.opt {
+        } else if side_set.bits > 0 && !side_set.opt {
             panic!("instruction requires 'side' set");
         } else {
             0
@@ -403,7 +405,10 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
 
     /// Assemble the program into PIO instructions.
     pub fn assemble(self) -> ArrayVec<u16, PROGRAM_SIZE> {
-        self.instructions.iter().map(|i| i.encode(&self)).collect()
+        self.instructions
+            .iter()
+            .map(|i| i.encode(self.side_set))
+            .collect()
     }
 
     /// Assemble the program into [`Program`].
@@ -742,6 +747,20 @@ fn test_assemble_program_default_wrap() {
             target: 0,
         }
     );
+}
+
+#[test]
+fn test_encode_instruction() {
+    let a = Instruction {
+        operands: InstructionOperands::JMP {
+            condition: JmpCondition::Always,
+            address: 1,
+        },
+        side_set: None,
+        delay: 0,
+    };
+
+    assert_eq!(a.encode(SideSet::default()), 0b000_00000_000_00001);
 }
 
 macro_rules! instr_test {
