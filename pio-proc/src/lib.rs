@@ -39,7 +39,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 let origin: proc_macro2::TokenStream =
                     format!("{:?}", program.origin).parse().unwrap();
                 let code: proc_macro2::TokenStream = format!(
-                    "::std::iter::IntoIterator::into_iter([{}]).collect()",
+                    "::core::iter::IntoIterator::into_iter([{}]).collect()",
                     program
                         .code
                         .iter()
