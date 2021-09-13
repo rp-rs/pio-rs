@@ -382,7 +382,6 @@ pub struct Assembler<const PROGRAM_SIZE: usize> {
     pub instructions: ArrayVec<Instruction, PROGRAM_SIZE>,
     #[doc(hidden)]
     pub side_set: SideSet,
-    delay_max: u8,
 }
 
 impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
@@ -395,11 +394,9 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// Create a new Assembler with `SideSet` settings.
     #[allow(clippy::new_without_default)]
     pub fn new_with_side_set(side_set: SideSet) -> Self {
-        let delay_max = (1 << (5 - side_set.bits)) - 1;
         Assembler {
             instructions: ArrayVec::new(),
             side_set,
-            delay_max,
         }
     }
 
