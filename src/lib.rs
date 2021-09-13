@@ -441,8 +441,8 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// Get the offset of a label in the program.
     pub fn label_offset(&self, label: &Label) -> u8 {
         match &label.state {
-            &LabelState::Bound(offset) => offset,
-            &LabelState::Unbound(_) => panic!("can't get offset for unbound label"),
+            LabelState::Bound(offset) => *offset,
+            LabelState::Unbound(_) => panic!("can't get offset for unbound label"),
         }
     }
 }
