@@ -1,11 +1,11 @@
-//! PIO
+//! # Programmable Input/Output
 //!
 //! ```rust
 //! // Repeatedly get one word of data from the TX FIFO, stalling when
 //! // the FIFO is empty. Write the least significant bit to the OUT pin
 //! // group.
 //! // https://github.com/raspberrypi/pico-examples/tree/master/pio/hello_pio/hello.pio
-//! let mut a = pio::Assembler::new();
+//! let mut a = pio::Assembler::<{ pio::RP2040_MAX_PROGRAM_SIZE }>::new();
 //!
 //! let mut loop_label = a.label();
 //!
@@ -14,7 +14,23 @@
 //! a.out(pio::OutDestination::PINS, 1);
 //! a.jmp(pio::JmpCondition::Always, &mut loop_label);
 //!
-//! let program = a.assemble();
+//! let program = a.assemble_program();
+//! ```
+//!
+//! ## Wrapping
+//! ```rust
+//! let mut a = pio::Assembler::<{ pio::RP2040_MAX_PROGRAM_SIZE }>::new();
+//!
+//! let mut wrap_source = a.label();
+//! let mut wrap_target = a.label();
+//!
+//! // Initialize pin direction only once
+//! a.set(pio::SetDestination::PINDIRS, 1);
+//! a.bind(&mut wrap_target);
+//! a.out(pio::OutDestination::PINS, 1);
+//! a.bind(&mut wrap_source);
+//!
+//! let program = a.assemble_with_wrap(wrap_source, wrap_target);
 //! ```
 
 #![no_std]
@@ -22,11 +38,12 @@
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::upper_case_acronyms)]
 
-// pub because the proc macro needs it
-#[doc(hidden)]
-pub extern crate alloc;
+pub use arrayvec::ArrayVec;
 
-use alloc::vec::Vec;
+/// Maximum program size of RP2040 chip, in bytes.
+///
+/// See Chapter 3, Figure 38 for reference of the value.
+pub const RP2040_MAX_PROGRAM_SIZE: usize = 32;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -245,6 +262,7 @@ impl InstructionOperands {
     }
 }
 
+/// A PIO instruction.
 #[derive(Debug)]
 pub struct Instruction {
     pub operands: InstructionOperands,
@@ -253,7 +271,7 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    fn encode(&self, a: &Assembler) -> u16 {
+    fn encode<const PROGRAM_SIZE: usize>(&self, a: &Assembler<PROGRAM_SIZE>) -> u16 {
         let mut data = self.operands.encode();
 
         if self.delay > a.delay_max {
@@ -306,7 +324,7 @@ impl Drop for Label {
 }
 
 /// Data for 'side' set instruction parameters.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SideSet {
     opt: bool,
     bits: u8,
@@ -347,47 +365,100 @@ impl SideSet {
     }
 }
 
+impl Default for SideSet {
+    fn default() -> Self {
+        SideSet::new(false, 0, false)
+    }
+}
+
 /// A PIO Assembler. See chapter three of the [RP2040 Datasheet][].
 ///
 /// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
 #[derive(Debug)]
-pub struct Assembler {
+pub struct Assembler<const PROGRAM_SIZE: usize> {
     #[doc(hidden)]
-    pub instructions: Vec<Instruction>,
+    pub instructions: ArrayVec<Instruction, PROGRAM_SIZE>,
     #[doc(hidden)]
     pub side_set: SideSet,
     delay_max: u8,
 }
 
-impl Assembler {
+impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// Create a new Assembler.
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Assembler {
-        Assembler::new_with_side_set(SideSet::new(false, 0, false))
+    pub fn new() -> Self {
+        Assembler::new_with_side_set(SideSet::default())
     }
 
     /// Create a new Assembler with `SideSet` settings.
     #[allow(clippy::new_without_default)]
-    pub fn new_with_side_set(side_set: SideSet) -> Assembler {
+    pub fn new_with_side_set(side_set: SideSet) -> Self {
         let delay_max = (1 << (5 - side_set.bits)) - 1;
         Assembler {
-            instructions: Vec::new(),
+            instructions: ArrayVec::new(),
             side_set,
             delay_max,
         }
     }
 
     /// Assemble the program into PIO instructions.
-    pub fn assemble(self) -> Vec<u16> {
+    pub fn assemble(self) -> ArrayVec<u16, PROGRAM_SIZE> {
         self.instructions.iter().map(|i| i.encode(&self)).collect()
+    }
+
+    /// Assemble the program into [`Program`].
+    ///
+    /// The program contains the instructions and side-set info set. You can directly compile into a program with
+    /// correct wrapping with [`Self::assemble_with_wrap`], or you can set the wrapping after the compilation with
+    /// [`Program::set_wrap`].
+    pub fn assemble_program(self) -> Program<PROGRAM_SIZE> {
+        let side_set = self.side_set;
+        let code = self.assemble();
+        let wrap = Wrap {
+            source: (code.len() - 1) as u8,
+            target: 0,
+        };
+
+        Program {
+            code,
+            origin: None,
+            side_set,
+            wrap,
+        }
+    }
+
+    /// Assemble the program into [`Program`] with wrapping.
+    ///
+    /// Takes pair of labels controlling the wrapping. The first label is the source (top) of the wrap while the second
+    /// label is the target (bottom) of the wrap. The source label should be positioned _after_ the instruction from
+    /// which the wrapping happens.
+    pub fn assemble_with_wrap(self, source: Label, target: Label) -> Program<PROGRAM_SIZE> {
+        let source = self.label_offset(&source) - 1;
+        let target = self.label_offset(&target);
+        self.assemble_program().set_wrap(Wrap { source, target })
+    }
+
+    /// Get the offset of a label in the program.
+    pub fn label_offset(&self, label: &Label) -> u8 {
+        match &label.state {
+            LabelState::Bound(offset) => *offset,
+            LabelState::Unbound(_) => panic!("can't get offset for unbound label"),
+        }
     }
 }
 
-impl Assembler {
+impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// Create a new unbound Label.
     pub fn label(&mut self) -> Label {
         Label {
             state: LabelState::Unbound(core::u8::MAX),
+        }
+    }
+
+    /// Create a new label bound to given offset.
+    pub fn label_at_offset(&mut self, offset: u8) -> Label {
+        Label {
+            state: LabelState::Bound(offset),
         }
     }
 
@@ -440,7 +511,7 @@ macro_rules! instr {
     }
 }
 
-impl Assembler {
+impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     instr!(
         /// Emit a `jmp` instruction to `label` for `condition`.
         jmp(self, condition: JmpCondition, label: &mut Label) {
@@ -540,9 +611,55 @@ impl Assembler {
     );
 }
 
+/// Source and target for automatic program wrapping.
+///
+/// After the instruction at offset pointed by [`source`] has been executed, the program control flow jumps to the
+/// instruction pointed by [`target`]. If the instruction is a jump, and the condition is true, the jump takes priority.
+///
+/// [`source`]: Self::source
+/// [`target`]: Self::target
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Wrap {
+    /// Source instruction for wrap.
+    pub source: u8,
+    /// Target instruction for wrap.
+    pub target: u8,
+}
+
+/// Program ready to be executed by PIO hardware.
+#[derive(Debug)]
+pub struct Program<const PROGRAM_SIZE: usize> {
+    /// Assembled program code.
+    pub code: ArrayVec<u16, PROGRAM_SIZE>,
+    /// Offset at which the program must be loaded.
+    ///
+    /// Most often 0 if defined. This might be needed when using data based `JMP`s.
+    pub origin: Option<u8>,
+    /// Wrapping behavior for this program.
+    pub wrap: Wrap,
+    /// Side-set info for this program.
+    pub side_set: SideSet,
+}
+
+impl<const PROGRAM_SIZE: usize> Program<PROGRAM_SIZE> {
+    /// Set the program loading location.
+    ///
+    /// If `None`, the program can be loaded at any location in the instruction memory.
+    pub fn set_origin(self, origin: Option<u8>) -> Self {
+        Self { origin, ..self }
+    }
+
+    /// Set the wrapping of the program.
+    pub fn set_wrap(self, wrap: Wrap) -> Self {
+        assert!((wrap.source as usize) < self.code.len());
+        assert!((wrap.target as usize) < self.code.len());
+        Self { wrap, ..self }
+    }
+}
+
 #[test]
 fn test_jump_1() {
-    let mut a = Assembler::new();
+    let mut a = Assembler::<32>::new();
 
     let mut l = a.label();
     a.set(SetDestination::X, 0);
@@ -551,7 +668,7 @@ fn test_jump_1() {
     a.jmp(JmpCondition::Always, &mut l);
 
     assert_eq!(
-        a.assemble(),
+        a.assemble().as_slice(),
         &[
             0b111_00000_001_00000, // SET X 0
             // L:
@@ -563,7 +680,7 @@ fn test_jump_1() {
 
 #[test]
 fn test_jump_2() {
-    let mut a = Assembler::new();
+    let mut a = Assembler::<32>::new();
 
     let mut top = a.label();
     let mut bottom = a.label();
@@ -575,7 +692,7 @@ fn test_jump_2() {
     a.set(SetDestination::Y, 1);
 
     assert_eq!(
-        a.assemble(),
+        a.assemble().as_slice(),
         &[
             // TOP:
             0b111_00000_010_00000, // SET Y 0
@@ -587,12 +704,52 @@ fn test_jump_2() {
     );
 }
 
+#[test]
+fn test_assemble_with_wrap() {
+    let mut a = Assembler::<32>::new();
+
+    let mut source = a.label();
+    let mut target = a.label();
+
+    a.set(SetDestination::PINDIRS, 0);
+    a.bind(&mut target);
+    a.r#in(InSource::NULL, 1);
+    a.push(false, false);
+    a.bind(&mut source);
+    a.jmp(JmpCondition::Always, &mut target);
+
+    assert_eq!(
+        a.assemble_with_wrap(source, target).wrap,
+        Wrap {
+            source: 2,
+            target: 1,
+        }
+    );
+}
+
+#[test]
+fn test_assemble_program_default_wrap() {
+    let mut a = Assembler::<32>::new();
+
+    a.set(SetDestination::PINDIRS, 0);
+    a.r#in(InSource::NULL, 1);
+    a.push(false, false);
+
+    assert_eq!(
+        a.assemble_program().wrap,
+        Wrap {
+            source: 2,
+            target: 0,
+        }
+    );
+}
+
 macro_rules! instr_test {
     ($name:ident ( $( $v:expr ),* ) , $b:expr, $side_set:expr) => {
         paste::paste! {
             #[test]
             fn [< test _ $name _ $b >]() {
-                let mut a = Assembler::new_with_side_set($side_set);
+                let mut a = Assembler::<32>::new_with_side_set($side_set);
                 a.$name(
                     $( $v ),*
                 );

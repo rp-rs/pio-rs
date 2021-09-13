@@ -232,40 +232,16 @@ impl<'a> ProgramState<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct Program<PublicDefines> {
-    origin: Option<u8>,
-    code: Vec<u16>,
-    wrap: (u8, u8),
-    side_set: pio::SideSet,
-    public_defines: PublicDefines,
-}
-
-impl<P> Program<P> {
-    #[doc(hidden)]
-    pub fn new_from_proc_macro(
-        origin: Option<u8>,
-        code: Vec<u16>,
-        wrap: (u8, u8),
-        side_set: pio::SideSet,
-        public_defines: P,
-    ) -> Self {
-        Program {
-            origin,
-            code,
-            wrap,
-            side_set,
-            public_defines,
-        }
-    }
-}
-
 type ParseError<'input> = lalrpop_util::ParseError<usize, parser::Token<'input>, &'static str>;
 
-impl Program<HashMap<String, i32>> {
+pub struct Parser<const PROGRAM_SIZE: usize>;
+
+impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
     /// Parse a PIO "file", which contains some number of PIO programs
     /// separated by `.program` directives.
-    pub fn parse_file(source: &str) -> Result<Vec<Self>, ParseError> {
+    pub fn parse_file(
+        source: &str,
+    ) -> Result<Vec<Program<HashMap<String, i32>, PROGRAM_SIZE>>, ParseError> {
         match parser::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
@@ -286,24 +262,26 @@ impl Program<HashMap<String, i32>> {
                     }
                 }
 
-                Ok(f.1
-                    .iter()
-                    .map(|p| Program::process(p, &mut state))
-                    .collect())
+                Ok(f.1.iter().map(|p| Parser::process(p, &mut state)).collect())
             }
             Err(e) => Err(e),
         }
     }
 
     /// Parse a single PIO program, without the `.program` directive.
-    pub fn parse_program(source: &str) -> Result<Self, ParseError> {
+    pub fn parse_program(
+        source: &str,
+    ) -> Result<Program<HashMap<String, i32>, PROGRAM_SIZE>, ParseError> {
         match parser::ProgramParser::new().parse(source) {
-            Ok(p) => Ok(Program::process(&p, &mut FileState::default())),
+            Ok(p) => Ok(Parser::process(&p, &mut FileState::default())),
             Err(e) => Err(e),
         }
     }
 
-    fn process(p: &[Line], file_state: &mut FileState) -> Self {
+    fn process(
+        p: &[Line],
+        file_state: &mut FileState,
+    ) -> Program<HashMap<String, i32>, PROGRAM_SIZE> {
         let mut state = ProgramState::new(file_state);
 
         // first pass
@@ -377,48 +355,32 @@ impl Program<HashMap<String, i32>> {
             }
         }
 
-        let side_set = a.side_set.clone();
-        let code = a.assemble();
+        let program = a.assemble_program().set_origin(origin);
+
+        let program = match (wrap, wrap_target) {
+            (Some(wrap_source), Some(wrap_target)) => program.set_wrap(pio::Wrap {
+                source: wrap_source,
+                target: wrap_target,
+            }),
+            (None, None) => program,
+            _ => panic!(
+                "must define either both or neither of wrap and wrap_target, but not only one of them"
+            ),
+        };
 
         Program {
-            origin,
-            wrap: match wrap_target {
-                Some(t) => (t, wrap.unwrap()),
-                None => (0, code.len() as u8 - 1),
-            },
-            code,
-            side_set,
+            program,
             public_defines: state.public_defines(),
         }
     }
 }
 
-impl<P> Program<P> {
-    /// Get the optional origin of this program. If
-    /// not present, the program may be loaded to any
-    /// offset in PIO instruction memory.
-    pub fn origin(&self) -> Option<u8> {
-        self.origin
-    }
-
-    /// Get the assembled code of this program.
-    pub fn code(&self) -> &[u16] {
-        &self.code
-    }
-
-    /// Get the wrap setting of this program
-    pub fn wrap(&self) -> (u8, u8) {
-        self.wrap
-    }
-
-    pub fn side_set(&self) -> &pio::SideSet {
-        &self.side_set
-    }
-
-    /// Get the publicly exposed defines of this program.
-    pub fn public_defines(&self) -> &P {
-        &self.public_defines
-    }
+/// Parsed program with defines.
+pub struct Program<PublicDefines, const PROGRAM_SIZE: usize> {
+    /// The compiled program.
+    pub program: pio::Program<PROGRAM_SIZE>,
+    /// Public defines.
+    pub public_defines: PublicDefines,
 }
 
 #[test]

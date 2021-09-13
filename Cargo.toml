@@ -9,6 +9,7 @@ resolver = "2"
 members = ["pio-proc", "pio-parser"]
 
 [dependencies]
+arrayvec = { version = "0.7", default_features = false }
 paste = "1.0"
 
 [dev-dependencies]
