@@ -11,6 +11,7 @@ members = ["pio-proc", "pio-parser"]
 [dependencies]
 arrayvec = { version = "0.7", default_features = false }
 paste = "1.0"
+num_enum = "0.5"
 
 [dev-dependencies]
 test-generator = "0.3.0"

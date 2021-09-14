@@ -39,6 +39,8 @@
 #![allow(clippy::upper_case_acronyms)]
 
 pub use arrayvec::ArrayVec;
+use core::convert::TryFrom;
+use num_enum::TryFromPrimitive;
 
 /// Maximum program size of RP2040 chip, in bytes.
 ///
@@ -46,7 +48,7 @@ pub use arrayvec::ArrayVec;
 pub const RP2040_MAX_PROGRAM_SIZE: usize = 32;
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum JmpCondition {
     /// Always
     Always = 0b000,
@@ -67,7 +69,7 @@ pub enum JmpCondition {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum WaitSource {
     GPIO = 0b00,
     PIN = 0b01,
@@ -76,7 +78,7 @@ pub enum WaitSource {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum InSource {
     PINS = 0b000,
     X = 0b001,
@@ -89,7 +91,7 @@ pub enum InSource {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum OutDestination {
     PINS = 0b000,
     X = 0b001,
@@ -102,7 +104,7 @@ pub enum OutDestination {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum MovDestination {
     PINS = 0b000,
     X = 0b001,
@@ -115,7 +117,7 @@ pub enum MovDestination {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum MovOperation {
     None = 0b00,
     Invert = 0b01,
@@ -124,7 +126,7 @@ pub enum MovOperation {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum MovSource {
     PINS = 0b000,
     X = 0b001,
@@ -137,7 +139,7 @@ pub enum MovSource {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum SetDestination {
     PINS = 0b000,
     X = 0b001,
@@ -252,13 +254,104 @@ impl InstructionOperands {
         }
     }
 
-    fn encode(&self) -> u16 {
+    /// Encode these operands into binary representation.
+    /// Note that this output does not take side set and delay into account.
+    pub fn encode(&self) -> u16 {
         let mut data: u16 = 0;
         data |= self.discrim() << 13;
         let (o0, o1) = self.operands();
         data |= (o0 as u16) << 5;
         data |= o1 as u16;
         data
+    }
+
+    /// Decode operands from binary representation.
+    /// Note that this output does not take side set and delay into account.
+    pub fn decode(instruction: u16) -> Option<Self> {
+        let discrim = instruction >> 13;
+        let o0 = ((instruction >> 5) & 0b111) as u8;
+        let o1 = (instruction & 0b11111) as u8;
+        match discrim {
+            0b000 => JmpCondition::try_from(o0)
+                .ok()
+                .map(|condition| InstructionOperands::JMP {
+                    condition,
+                    address: o1,
+                }),
+            0b001 => {
+                WaitSource::try_from(o0 & 0b011)
+                    .ok()
+                    .map(|source| InstructionOperands::WAIT {
+                        polarity: o0 >> 2,
+                        source,
+                        index: o1,
+                    })
+            }
+            0b010 => InSource::try_from(o0)
+                .ok()
+                .map(|source| InstructionOperands::IN {
+                    source,
+                    bit_count: o1,
+                }),
+            0b011 => {
+                OutDestination::try_from(o0)
+                    .ok()
+                    .map(|destination| InstructionOperands::OUT {
+                        destination,
+                        bit_count: o1,
+                    })
+            }
+            0b100 => {
+                let if_flag = o0 & 0b010 != 0;
+                let block = o0 & 0b001 != 0;
+                if o1 != 0 {
+                    None
+                } else if o0 & 0b100 == 0 {
+                    Some(InstructionOperands::PUSH {
+                        if_full: if_flag,
+                        block,
+                    })
+                } else {
+                    Some(InstructionOperands::PULL {
+                        if_empty: if_flag,
+                        block,
+                    })
+                }
+            }
+            0b101 => match (
+                MovDestination::try_from(o0).ok(),
+                MovOperation::try_from((o1 >> 3) & 0b11).ok(),
+                MovSource::try_from(o1 & 0b111).ok(),
+            ) {
+                (Some(destination), Some(op), Some(source)) => Some(InstructionOperands::MOV {
+                    destination,
+                    op,
+                    source,
+                }),
+                _ => None,
+            },
+            0b110 => {
+                if o0 & 0b100 == 0 {
+                    Some(InstructionOperands::IRQ {
+                        clear: o0 & 0b010 != 0,
+                        wait: o0 & 0b001 != 0,
+                        index: o1 & 0b01111,
+                        relative: o1 & 0b10000 != 0,
+                    })
+                } else {
+                    None
+                }
+            }
+            0b111 => {
+                SetDestination::try_from(o0)
+                    .ok()
+                    .map(|destination| InstructionOperands::SET {
+                        destination,
+                        data: o1,
+                    })
+            }
+            _ => None,
+        }
     }
 }
 
@@ -302,6 +395,25 @@ impl Instruction {
         data |= ((self.delay as u16) | side_set) << 8;
 
         data
+    }
+
+    /// Decode a single instruction.
+    pub fn decode(instruction: u16, side_set: SideSet) -> Option<Instruction> {
+        InstructionOperands::decode(instruction).map(|operands| {
+            let data = ((instruction >> 8) & 0b11111) as u8;
+
+            let delay = data & ((1 << (5 - side_set.bits)) - 1);
+            let side_set = match data >> (5 - side_set.bits) {
+                0 => None,
+                s => Some(s & if side_set.opt { 0b01111 } else { 0b11111 }),
+            };
+
+            Instruction {
+                operands,
+                delay,
+                side_set,
+            }
+        })
     }
 }
 
@@ -746,33 +858,26 @@ fn test_assemble_program_default_wrap() {
     );
 }
 
-#[test]
-fn test_encode_instruction() {
-    let a = Instruction {
-        operands: InstructionOperands::JMP {
-            condition: JmpCondition::Always,
-            address: 1,
-        },
-        side_set: None,
-        delay: 0,
-    };
-
-    assert_eq!(a.encode(SideSet::default()), 0b000_00000_000_00001);
-}
-
 macro_rules! instr_test {
-    ($name:ident ( $( $v:expr ),* ) , $b:expr, $side_set:expr) => {
+    ($name:ident ( $( $v:expr ),* ) , $expected:expr, $side_set:expr) => {
         paste::paste! {
             #[test]
-            fn [< test _ $name _ $b >]() {
+            fn [< test _ $name _ $expected >]() {
+                let expected = $expected;
+
                 let mut a = Assembler::<32>::new_with_side_set($side_set);
                 a.$name(
                     $( $v ),*
                 );
-                let a = a.assemble()[0];
-                let b = $b;
-                if a != b {
-                    panic!("assertion failure: (left == right)\nleft:  {:#016b}\nright: {:#016b}", a, b);
+                let instr = a.assemble()[0];
+                if instr != expected {
+                    panic!("assertion failure: (left == right)\nleft:  {:#016b}\nright: {:#016b}", instr, expected);
+                }
+
+                let decoded = Instruction::decode(instr, $side_set).unwrap();
+                let encoded = decoded.encode($side_set);
+                if encoded != expected {
+                    panic!("assertion failure: (left == right)\nleft:  {:#016b}\nright: {:#016b}", encoded, expected);
                 }
             }
         }
