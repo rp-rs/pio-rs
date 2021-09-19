@@ -403,9 +403,15 @@ impl Instruction {
             let data = ((instruction >> 8) & 0b11111) as u8;
 
             let delay = data & ((1 << (5 - side_set.bits)) - 1);
-            let side_set = match data >> (5 - side_set.bits) {
-                0 => None,
-                s => Some(s & if side_set.opt { 0b01111 } else { 0b11111 }),
+
+            let has_side_set = side_set.bits > 0 && (!side_set.opt || data & 0b10000 > 0);
+            let side_set_data =
+                (data & if side_set.opt { 0b01111 } else { 0b11111 }) >> (5 - side_set.bits);
+
+            let side_set = if has_side_set {
+                Some(side_set_data)
+            } else {
+                None
             };
 
             Instruction {
