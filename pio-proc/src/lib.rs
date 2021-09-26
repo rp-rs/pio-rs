@@ -32,7 +32,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioMacroArgs);
     let result =
         match pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_program(&args.source.value()) {
-            Ok(pio_parser::Program {
+            Ok(pio::ProgramWithDefines {
                 program,
                 public_defines,
             }) => {
@@ -95,7 +95,7 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #defines_struct
-                        ::pio_parser::Program {
+                        ::pio::ProgramWithDefines {
                             program: ::pio::Program::<{ #program_size }> {
                                 code: #code,
                                 origin: #origin,
