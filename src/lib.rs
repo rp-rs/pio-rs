@@ -777,6 +777,14 @@ impl<const PROGRAM_SIZE: usize> Program<PROGRAM_SIZE> {
     }
 }
 
+/// Parsed program with defines.
+pub struct ProgramWithDefines<PublicDefines, const PROGRAM_SIZE: usize> {
+    /// The compiled program.
+    pub program: Program<PROGRAM_SIZE>,
+    /// Public defines.
+    pub public_defines: PublicDefines,
+}
+
 #[test]
 fn test_jump_1() {
     let mut a = Assembler::<32>::new();
