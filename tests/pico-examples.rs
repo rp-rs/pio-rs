@@ -6,7 +6,7 @@ fn test(test: &str) {
     let path = std::path::PathBuf::from(test);
     let program_source = std::fs::read_to_string(&path).unwrap();
     let programs =
-        pio_parser::Parser::<{ pio::RP2040_MAX_PROGRAM_SIZE }>::parse_file(&program_source)
+        rp_pio_parser::Parser::<{ rp_pio::RP2040_MAX_PROGRAM_SIZE }>::parse_file(&program_source)
             .unwrap();
 
     let mut hex_path = path;

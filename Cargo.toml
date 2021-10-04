@@ -1,5 +1,5 @@
 [package]
-name = "pio"
+name = "rp-pio"
 version = "0.1.0"
 authors = ["snek"]
 edition = "2018"
@@ -16,5 +16,5 @@ num_enum = { version = "0.5", default_features = false }
 [dev-dependencies]
 test-generator = "0.3.0"
 pretty_assertions = "0.6"
-pio-proc = { path = "./pio-proc" }
-pio-parser = { path = "./pio-parser" }
+rp-pio-proc = { path = "./pio-proc" }
+rp-pio-parser = { path = "./pio-parser" }
