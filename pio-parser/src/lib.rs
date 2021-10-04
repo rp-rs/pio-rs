@@ -2,7 +2,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::upper_case_acronyms)]
 
-use pio::{
+use rp_pio::{
     InSource, Instruction, InstructionOperands, JmpCondition, MovDestination, MovOperation,
     MovSource, OutDestination, ProgramWithDefines, SetDestination, WaitSource,
 };
@@ -341,7 +341,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
             }
         }
 
-        let mut a = pio::Assembler::new_with_side_set(pio::SideSet::new(
+        let mut a = rp_pio::Assembler::new_with_side_set(rp_pio::SideSet::new(
             side_set_opt,
             side_set_size,
             side_set_pindirs,
@@ -358,7 +358,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
         let program = a.assemble_program().set_origin(origin);
 
         let program = match (wrap, wrap_target) {
-            (Some(wrap_source), Some(wrap_target)) => program.set_wrap(pio::Wrap {
+            (Some(wrap_source), Some(wrap_target)) => program.set_wrap(rp_pio::Wrap {
                 source: wrap_source,
                 target: wrap_target,
             }),
@@ -377,7 +377,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
 
 #[test]
 fn test() {
-    let p = Program::parse_program(
+    let p = rp_pio::Program::parse_program(
         "
     label:
       pull
@@ -402,7 +402,7 @@ fn test() {
 
 #[test]
 fn test_side_set() {
-    let p = Program::parse_program(
+    let p = rp_pio::Program::parse_program(
         "
     .side_set 1 opt
     .origin 5
