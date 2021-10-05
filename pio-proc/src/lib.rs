@@ -31,8 +31,8 @@ impl syn::parse::Parse for PioMacroArgs {
 pub fn pio(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioMacroArgs);
     let result =
-        match rp_pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_program(&args.source.value()) {
-            Ok(rp_pio::ProgramWithDefines {
+        match pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_program(&args.source.value()) {
+            Ok(pio::ProgramWithDefines {
                 program,
                 public_defines,
             }) => {
@@ -50,13 +50,13 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 .parse()
                 .unwrap();
                 let wrap: proc_macro2::TokenStream = format!(
-                    "::rp_pio::Wrap {{source: {}, target: {}}}",
+                    "::pio::Wrap {{source: {}, target: {}}}",
                     program.wrap.source, program.wrap.target
                 )
                 .parse()
                 .unwrap();
                 let side_set: proc_macro2::TokenStream = format!(
-                    "::rp_pio::SideSet::new_from_proc_macro({}, {}, {})",
+                    "::pio::SideSet::new_from_proc_macro({}, {}, {})",
                     program.side_set.optional(),
                     program.side_set.bits(),
                     program.side_set.pindirs()
@@ -95,8 +95,8 @@ pub fn pio(item: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #defines_struct
-                        ::rp_pio::ProgramWithDefines {
-                            program: ::rp_pio::Program::<{ #program_size }> {
+                        ::pio::ProgramWithDefines {
+                            program: ::pio::Program::<{ #program_size }> {
                                 code: #code,
                                 origin: #origin,
                                 wrap: #wrap,

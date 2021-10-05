@@ -1,5 +1,5 @@
 [package]
-name = "rp-pio-proc"
+name = "pio-proc"
 version = "0.1.0"
 authors = ["snek"]
 edition = "2018"
@@ -13,6 +13,6 @@ syn = "1.0"
 proc-macro2 = { version = "1.0", features = ["span-locations"] }
 quote = "1.0"
 codespan-reporting = "0.11"
-rp-pio = { path = ".." }
-rp-pio-parser = { path = "../pio-parser"}
+pio = { path = ".." }
+pio-parser = { path = "../pio-parser" }
 lalrpop-util = "0.19.6"

@@ -1,5 +1,5 @@
 [package]
-name = "rp-pio-parser"
+name = "pio-parser"
 version = "0.1.0"
 authors = ["snek"]
 edition = "2018"
@@ -7,7 +7,7 @@ resolver= "2"
 
 [dependencies]
 lalrpop-util = { version = "0.19.6", features = ["lexer"] }
-rp-pio = { path = ".."}
+pio = { path = ".." }
 
 [build-dependencies]
 lalrpop = "0.19.6"
