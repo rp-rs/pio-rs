@@ -1,5 +1,7 @@
 [package]
 name = "rp-pio"
+description = "Support library for handling PIO programs for the Programmable Input/Output peripheral found in Raspberry Silicon microcontrollers"
+license = "MIT"
 version = "0.1.0"
 authors = ["snek"]
 edition = "2018"
