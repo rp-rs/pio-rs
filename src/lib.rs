@@ -453,7 +453,7 @@ pub struct SideSet {
 }
 
 impl SideSet {
-    pub fn new(opt: bool, bits: u8, pindirs: bool) -> SideSet {
+    pub const fn new(opt: bool, bits: u8, pindirs: bool) -> SideSet {
         SideSet {
             opt,
             bits: bits + if opt { 1 } else { 0 },
@@ -621,6 +621,14 @@ macro_rules! instr_impl {
 }
 
 macro_rules! instr {
+    ( $(#[$inner:ident $($args:tt)*])* $name:ident ( $self:ident ) $body:expr ) => {
+        instr_impl!($(#[$inner $($args)*])* $name ( $self, ) $body, 0, None );
+        paste::paste! {
+            instr_impl!($(#[$inner $($args)*])* [< $name _with_delay >] ( $self, delay: u8 ) $body, delay, None );
+            instr_impl!($(#[$inner $($args)*])* [< $name _with_side_set >] ( $self, side_set: u8 ) $body, 0, Some(side_set) );
+            instr_impl!($(#[$inner $($args)*])* [< $name _with_delay_and_side_set >] ( $self, delay: u8, side_set: u8 ) $body, delay, Some(side_set) );
+        }
+    };
     ( $(#[$inner:ident $($args:tt)*])* $name:ident ( $self:ident, $( $arg_name:ident : $arg_ty:ty ),* ) $body:expr ) => {
         instr_impl!($(#[$inner $($args)*])* $name ( $self, $( $arg_name: $arg_ty ),* ) $body, 0, None );
         paste::paste! {
@@ -726,6 +734,18 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
             InstructionOperands::SET {
                 destination,
                 data,
+            }
+        }
+    );
+
+    instr!(
+        /// Emit a `mov` instruction from Y to Y without operation effectively acting as a `nop`
+        /// instruction.
+        nop(self) {
+            InstructionOperands::MOV {
+                destination: MovDestination::Y,
+                op: MovOperation::None,
+                source: MovSource::Y
             }
         }
     );
