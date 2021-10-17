@@ -493,7 +493,7 @@ impl Default for SideSet {
 
 /// A PIO Assembler. See chapter three of the [RP2040 Datasheet][].
 ///
-/// [RP2040 Datasheet]: https://rptl.io/pico-datasheet
+/// [RP2040 Datasheet]: https://rptl.io/rp2040-datasheet
 #[derive(Debug)]
 pub struct Assembler<const PROGRAM_SIZE: usize> {
     #[doc(hidden)]
