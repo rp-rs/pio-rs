@@ -58,7 +58,7 @@ use pio_proc::pio;
 let program = pio_proc::pio!(
     32,
     "
-    set PINDIRS, 1
+    set pindirs, 1
     .wrap_target
     set pins, 0 [31]
     set pins, 1 [31]
@@ -79,8 +79,8 @@ run-time on the RP2040 itself!
 // Define some simple PIO program.
 const MAX_DELAY: u8 = 31;
 let mut assembler = pio::Assembler::<32>::new();
-let mut wrap_target = a.label();
-let mut wrap_source = a.label();
+let mut wrap_target = assembler.label();
+let mut wrap_source = assembler.label();
 // Set pin as Out
 assembler.set(pio::SetDestination::PINDIRS, 1);
 // Define begin of program loop
