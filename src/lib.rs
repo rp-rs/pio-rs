@@ -949,3 +949,17 @@ instr_test!(irq(true, false, 0b11, false), 0b110_00000_010_00011);
 instr_test!(irq(false, true, 0b111, true), 0b110_00000_001_10111);
 
 instr_test!(set(SetDestination::Y, 10), 0b111_00000_010_01010);
+
+/// This block ensures that README.md is checked when `cargo test` is run.
+#[cfg(doctest)]
+mod test_readme {
+    macro_rules! external_doc_test {
+        ($x:expr) => {
+            #[doc = $x]
+            extern "C" {}
+        };
+    }
+    external_doc_test!(include_str!("../README.md"));
+}
+
+// End of file
