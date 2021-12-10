@@ -1,9 +1,10 @@
 [package]
 name = "pio"
 version = "0.1.0"
-authors = ["snek"]
+authors = ["snek", "The rp-rs developers"]
 edition = "2018"
 resolver = "2"
+license = "MIT"
 
 [workspace]
 members = ["pio-proc", "pio-parser"]
