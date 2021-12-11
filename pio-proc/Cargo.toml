@@ -1,9 +1,12 @@
 [package]
 name = "pio-proc"
 version = "0.1.0"
-authors = ["snek"]
+authors = ["snek", "The rp-rs Developers"]
 edition = "2018"
 resolver = "2"
+license = "MIT"
+repository = "https://github.com/rp-rs/pio-rs"
+description = "proc-macro for assembling PIO code in a Rust program at compile time"
 
 [lib]
 proc-macro = true
@@ -13,6 +16,6 @@ syn = "1.0"
 proc-macro2 = { version = "1.0", features = ["span-locations"] }
 quote = "1.0"
 codespan-reporting = "0.11"
-pio = { path = ".." }
-pio-parser = { path = "../pio-parser" }
+pio = { path = "..", version = "0.1.0" }
+pio-parser = { path = "../pio-parser", version = "0.1.0" }
 lalrpop-util = "0.19.6"
