@@ -46,8 +46,7 @@ Your `Cargo.toml` file should include:
 
 ```toml
 [dev-dependencies]
-pio-proc = { git = "https://github.com/rp-rs/pio-rs.git" }
-# pio-proc = "0.1" will work once we publish to crates.io
+pio-proc = "0.1"
 ```
 
 Your Rust program should contain your PIO program, as follows:
@@ -129,7 +128,7 @@ appreciated**.
 
 ## License
 
-Distributed under the MIT License. See `LICENCE` for more information.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Contact
 
