@@ -5,6 +5,8 @@ authors = ["snek", "The rp-rs developers"]
 edition = "2018"
 resolver = "2"
 license = "MIT"
+description = "Support for the Raspberry Silicon RP2040's PIO State Machines."
+repository = "https://github.com/rp-rs/pio-rs"
 
 [workspace]
 members = ["pio-proc", "pio-parser"]
