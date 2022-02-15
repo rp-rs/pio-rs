@@ -108,10 +108,11 @@ BaseInstruction: ParsedOperands<'input> = {
     },
     address: e,
   },
-  "wait" <p:Value> <s:WaitSource> ","? <i:Value> => ParsedOperands::WAIT {
+  "wait" <p:Value> <s:WaitSource> ","? <i:Value> <r:"rel"?> => ParsedOperands::WAIT {
     polarity: p,
     source: s,
     index: i,
+    relative: r.is_some(),
   },
   "in" <s:InSource> ","? <b:Value> => ParsedOperands::IN {
     source: s,
