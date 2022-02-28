@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- None
+- Updated syntax to allow for `.pio` files
+- Updated pio asm macro with new syntax to follow `asm!`
 
 ## [0.1.0] [Crates.io](https://crates.io/crates/pio-rs/0.1.0) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.1.0)
 

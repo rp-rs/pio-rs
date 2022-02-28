@@ -45,24 +45,35 @@ at compile time.
 Your `Cargo.toml` file should include:
 
 ```toml
-[dev-dependencies]
+[dependencies]
 pio-proc = "0.1"
+pio = "0.1"
 ```
 
-Your Rust program should contain your PIO program, as follows:
+Your Rust program should contain your PIO program, as follows with PIO asm directly in the file:
 
 ```rust
-use pio_proc::pio;
+use pio_proc::pio_asm;
 
-let program = pio_proc::pio!(
-    32,
-    "
-    set pindirs, 1
-    .wrap_target
-    set pins, 0 [31]
-    set pins, 1 [31]
-    .wrap
-    "
+let program = pio_proc::pio_asm!(
+    "set pindirs, 1",
+    ".wrap_target",
+    "set pins, 0 [31]",
+    "set pins, 1 [31]",
+    ".wrap",
+    options(max_program_size = 32) // Optional, defaults to 32
+);
+```
+
+Or you can assemble a stand-alone PIO file from disk:
+
+```rust
+use pio_proc::pio_file;
+
+let program = pio_proc::pio_file!(
+    "../tests/test.pio",
+    select_program("test"), // Optional if only one program in the file
+    options(max_program_size = 32) // Optional, defaults to 32
 );
 ```
 
