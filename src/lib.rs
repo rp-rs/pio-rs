@@ -163,6 +163,7 @@ pub enum InstructionOperands {
         polarity: u8,
         source: WaitSource,
         index: u8,
+        relative: bool,
     },
     IN {
         source: InSource,
@@ -219,7 +220,11 @@ impl InstructionOperands {
                 polarity,
                 source,
                 index,
-            } => (polarity << 2 | (*source as u8), *index),
+                relative,
+            } => (
+                polarity << 2 | (*source as u8),
+                *index | (if *relative { 0b10000 } else { 0 }),
+            ),
             InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count),
             InstructionOperands::OUT {
                 destination,
@@ -285,6 +290,7 @@ impl InstructionOperands {
                         polarity: o0 >> 2,
                         source,
                         index: o1,
+                        relative: o1 & 0b10000 != 0,
                     })
             }
             0b010 => InSource::try_from(o0)
@@ -650,12 +656,14 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     );
 
     instr!(
-        /// Emit a `wait` instruction with `polarity` from `source` with `index`.
-        wait(self, polarity: u8, source: WaitSource, index: u8) {
+        /// Emit a `wait` instruction with `polarity` from `source` with `index` which may be
+        /// `relative`.
+        wait(self, polarity: u8, source: WaitSource, index: u8, relative: bool) {
             InstructionOperands::WAIT {
                 polarity,
                 source,
                 index,
+                relative,
             }
         }
     );
@@ -914,17 +922,18 @@ macro_rules! instr_test {
     };
 }
 
-instr_test!(wait(0, WaitSource::IRQ, 10), 0b001_00000_010_01010);
-instr_test!(wait(1, WaitSource::IRQ, 15), 0b001_00000_110_01111);
+instr_test!(wait(0, WaitSource::IRQ, 10, false), 0b001_00000_010_01010);
+instr_test!(wait(1, WaitSource::IRQ, 15, false), 0b001_00000_110_01111);
 instr_test!(
-    wait_with_delay(0, WaitSource::IRQ, 10, 30),
+    wait_with_delay(0, WaitSource::IRQ, 10, false, 30),
     0b001_11110_010_01010
 );
 instr_test!(
-    wait_with_side_set(0, WaitSource::IRQ, 10, 0b10101),
+    wait_with_side_set(0, WaitSource::IRQ, 10, false, 0b10101),
     0b001_10101_010_01010,
     SideSet::new(false, 5, false)
 );
+instr_test!(wait(0, WaitSource::IRQ, 10, true), 0b001_00000_010_11010);
 
 instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);
 
