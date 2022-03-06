@@ -1,6 +1,6 @@
 [package]
 name = "pio"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["snek", "The rp-rs developers"]
 edition = "2018"
 resolver = "2"
