@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] [Crates.io](https://crates.io/crates/pio-rs/0.2.0) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.2.0)
+
 - Updated syntax to allow for `.pio` files
 - Updated pio asm macro with new syntax to follow `asm!`
 - Add optional `rel` flag to index on `WAIT IRQ` instruction. (Breaking change, adds parameter to public data structures)
