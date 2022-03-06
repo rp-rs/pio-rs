@@ -1,0 +1,19 @@
+.program test
+
+.origin 5
+public label:
+    .wrap_target
+    jmp label
+    .wrap
+    jmp label
+.define public owo label + 2
+
+.program test2
+
+.origin 5
+public label:
+    .wrap_target
+    jmp label
+    .wrap
+    jmp label
+.define public owo label + 2

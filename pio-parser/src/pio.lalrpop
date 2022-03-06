@@ -34,7 +34,7 @@ match {
 // for parsing a .pio file
 pub(crate) File = NEWLINE* <DefineDirective*> <ProgramWithDirective*>;
 
-ProgramWithDirective = ".program" Symbol NEWLINE <Program>;
+ProgramWithDirective = ".program" <Symbol> NEWLINE <Program>;
 
 // for parsing macro input
 pub(crate) Program = NEWLINE* <Line*>;

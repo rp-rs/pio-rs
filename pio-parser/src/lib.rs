@@ -235,7 +235,7 @@ impl<'a> ProgramState<'a> {
     }
 }
 
-type ParseError<'input> = lalrpop_util::ParseError<usize, parser::Token<'input>, &'static str>;
+pub type ParseError<'input> = lalrpop_util::ParseError<usize, parser::Token<'input>, &'static str>;
 
 pub struct Parser<const PROGRAM_SIZE: usize>;
 
@@ -244,7 +244,8 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
     /// separated by `.program` directives.
     pub fn parse_file(
         source: &str,
-    ) -> Result<Vec<ProgramWithDefines<HashMap<String, i32>, PROGRAM_SIZE>>, ParseError> {
+    ) -> Result<HashMap<String, ProgramWithDefines<HashMap<String, i32>, PROGRAM_SIZE>>, ParseError>
+    {
         match parser::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
@@ -265,7 +266,13 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
                     }
                 }
 
-                Ok(f.1.iter().map(|p| Parser::process(p, &mut state)).collect())
+                Ok(f.1
+                    .iter()
+                    .map(|p| {
+                        let program_name = p.0.to_string();
+                        (program_name, Parser::process(&p.1, &mut state))
+                    })
+                    .collect())
             }
             Err(e) => Err(e),
         }
