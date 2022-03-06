@@ -17,7 +17,6 @@ fn test_file() {
     assert_eq!(p.public_defines.label, 0);
     assert_eq!(p.public_defines.owo, 2);
 }
-// }
 
 #[test]
 fn test_pio_proc() {
