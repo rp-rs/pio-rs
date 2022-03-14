@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the search path for `pio_file` when using relative paths
+
 ## [0.2.0] [Crates.io](https://crates.io/crates/pio-rs/0.2.0) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.2.0)
 
 - Updated syntax to allow for `.pio` files
@@ -17,5 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/rp-rs/pio-rs/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rp-rs/pio-rs/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rp-rs/pio-rs/tag/v0.2.0
 [0.1.0]: https://github.com/rp-rs/pio-rs/tag/v0.1.0

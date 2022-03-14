@@ -1,7 +1,7 @@
 #[test]
 fn test_file() {
     let p = pio_proc::pio_file!(
-        "../tests/test.pio",
+        "./tests/test.pio",
         select_program("test2"),
         options(max_program_size = 32)
     );

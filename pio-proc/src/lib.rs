@@ -136,7 +136,11 @@ impl syn::parse::Parse for PioFileMacroArgs {
                 let mut p = PathBuf::new();
 
                 if path.is_relative() {
-                    p.push(env!("CARGO_MANIFEST_DIR"));
+                    if let Some(crate_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
+                        p.push(crate_dir);
+                    } else {
+                        abort!(s, "Cannot find 'CARGO_MANIFEST_DIR' environment variable");
+                    }
                 }
 
                 p.push(path);
