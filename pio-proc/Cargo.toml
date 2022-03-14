@@ -1,6 +1,6 @@
 [package]
 name = "pio-proc"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["snek", "The rp-rs Developers"]
 edition = "2018"
 resolver = "2"
