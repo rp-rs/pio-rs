@@ -76,7 +76,7 @@ pub(crate) struct ParsedInstruction<'input> {
 impl<'i> ParsedInstruction<'i> {
     fn reify(&self, state: &ProgramState) -> Instruction {
         Instruction {
-            operands: self.operands.refiy(state),
+            operands: self.operands.reify(state),
             side_set: self.side_set.as_ref().map(|s| s.reify(state) as u8),
             delay: self.delay.reify(state) as u8,
         }
@@ -129,7 +129,7 @@ pub(crate) enum ParsedOperands<'input> {
 }
 
 impl<'i> ParsedOperands<'i> {
-    fn refiy(&self, state: &ProgramState) -> InstructionOperands {
+    fn reify(&self, state: &ProgramState) -> InstructionOperands {
         match self {
             ParsedOperands::JMP { condition, address } => InstructionOperands::JMP {
                 condition: *condition,
