@@ -32,7 +32,7 @@ match {
 }
 
 // for parsing a .pio file
-pub(crate) File = NEWLINE* <DefineDirective*> <ProgramWithDirective*>;
+pub(crate) File = NEWLINE* <(DefineDirective NEWLINE+)*> <ProgramWithDirective*>;
 
 ProgramWithDirective = ".program" <Symbol> NEWLINE <Program>;
 
