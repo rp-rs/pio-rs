@@ -257,7 +257,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
                         public,
                         name,
                         value,
-                    } = d
+                    } = d.0
                     {
                         fake_prog_state
                             .file_state

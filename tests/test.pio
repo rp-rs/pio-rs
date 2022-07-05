@@ -1,3 +1,5 @@
+.define public foo 3
+
 .program test
 
 .origin 5
