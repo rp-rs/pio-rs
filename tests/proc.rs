@@ -5,6 +5,13 @@ fn test_file() {
         select_program("test2"),
         options(max_program_size = 32)
     );
+    let p2 = pio_proc::pio_file!(
+        "./tests/test.pio",
+        select_program("test"),
+        options(max_program_size = 32)
+    );
+    assert_eq!(p.public_defines.foo, 3);
+    assert_eq!(p2.public_defines.foo, 3);
     assert_eq!(p.program.origin, Some(5));
     assert_eq!(&*p.program.code, &[0, 0]);
     assert_eq!(
