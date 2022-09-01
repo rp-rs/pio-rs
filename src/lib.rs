@@ -229,7 +229,7 @@ impl InstructionOperands {
                     polarity << 2 | (*source as u8),
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
-            },
+            }
             InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count),
             InstructionOperands::OUT {
                 destination,
