@@ -69,7 +69,7 @@ pub enum JmpCondition {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum WaitSource {
     GPIO = 0b00,
     PIN = 0b01,
@@ -221,10 +221,15 @@ impl InstructionOperands {
                 source,
                 index,
                 relative,
-            } => (
-                polarity << 2 | (*source as u8),
-                *index | (if *relative { 0b10000 } else { 0 }),
-            ),
+            } => {
+                if *relative && *source != WaitSource::IRQ {
+                    panic!("relative flag should only be used with WaitSource::IRQ");
+                }
+                (
+                    polarity << 2 | (*source as u8),
+                    *index | (if *relative { 0b10000 } else { 0 }),
+                )
+            }
             InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count),
             InstructionOperands::OUT {
                 destination,
@@ -934,6 +939,14 @@ instr_test!(
     SideSet::new(false, 5, false)
 );
 instr_test!(wait(0, WaitSource::IRQ, 10, true), 0b001_00000_010_11010);
+
+#[test]
+#[should_panic]
+fn test_wait_relative_not_used_on_irq() {
+    let mut a = Assembler::<32>::new();
+    a.wait(0, WaitSource::PIN, 10, true);
+    a.assemble_program();
+}
 
 instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);
 
