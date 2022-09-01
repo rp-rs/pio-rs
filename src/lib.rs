@@ -69,7 +69,7 @@ pub enum JmpCondition {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq)]
 pub enum WaitSource {
     GPIO = 0b00,
     PIN = 0b01,
@@ -223,7 +223,7 @@ impl InstructionOperands {
                 relative,
             } => (
                 polarity << 2 | (*source as u8),
-                *index | (if *relative { 0b10000 } else { 0 }),
+                *index | (if *relative && *source == WaitSource::IRQ { 0b10000 } else { 0 }),
             ),
             InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count),
             InstructionOperands::OUT {
@@ -934,6 +934,7 @@ instr_test!(
     SideSet::new(false, 5, false)
 );
 instr_test!(wait(0, WaitSource::IRQ, 10, true), 0b001_00000_010_11010);
+instr_test!(wait(0, WaitSource::PIN, 10, true), 0b001_00000_001_01010);
 
 instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);
 
