@@ -46,8 +46,8 @@ Your `Cargo.toml` file should include:
 
 ```toml
 [dependencies]
-pio-proc = "0.1"
-pio = "0.1"
+pio-proc = "0.2"
+pio = "0.2"
 ```
 
 Your Rust program should contain your PIO program, as follows with PIO asm directly in the file:
