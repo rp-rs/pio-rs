@@ -295,7 +295,7 @@ impl InstructionOperands {
                         polarity: o0 >> 2,
                         source,
                         index: o1,
-                        relative: o1 & 0b10000 != 0,
+                        relative: (o1 & 0b10000 != 0) && source == WaitSource::IRQ,
                     })
             }
             0b010 => InSource::try_from(o0)
@@ -929,6 +929,7 @@ macro_rules! instr_test {
 
 instr_test!(wait(0, WaitSource::IRQ, 10, false), 0b001_00000_010_01010);
 instr_test!(wait(1, WaitSource::IRQ, 15, false), 0b001_00000_110_01111);
+instr_test!(wait(1, WaitSource::GPIO, 16, false), 0b001_00000_100_10000);
 instr_test!(
     wait_with_delay(0, WaitSource::IRQ, 10, false, 30),
     0b001_11110_010_01010
