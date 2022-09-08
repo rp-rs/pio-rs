@@ -199,7 +199,7 @@ pub enum InstructionOperands {
 }
 
 impl InstructionOperands {
-    fn discrim(&self) -> u16 {
+    const fn discrim(&self) -> u16 {
         match self {
             InstructionOperands::JMP { .. } => 0b000,
             InstructionOperands::WAIT { .. } => 0b001,
@@ -213,7 +213,7 @@ impl InstructionOperands {
         }
     }
 
-    fn operands(&self) -> (u8, u8) {
+    const fn operands(&self) -> (u8, u8) {
         match self {
             InstructionOperands::JMP { condition, address } => (*condition as u8, *address),
             InstructionOperands::WAIT {
@@ -222,11 +222,11 @@ impl InstructionOperands {
                 index,
                 relative,
             } => {
-                if *relative && *source != WaitSource::IRQ {
+                if *relative && !matches!(*source, WaitSource::IRQ) {
                     panic!("relative flag should only be used with WaitSource::IRQ");
                 }
                 (
-                    polarity << 2 | (*source as u8),
+                    (*polarity) << 2 | (*source as u8),
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
             }
@@ -266,7 +266,7 @@ impl InstructionOperands {
 
     /// Encode these operands into binary representation.
     /// Note that this output does not take side set and delay into account.
-    pub fn encode(&self) -> u16 {
+    pub const fn encode(&self) -> u16 {
         let mut data: u16 = 0;
         data |= self.discrim() << 13;
         let (o0, o1) = self.operands();
