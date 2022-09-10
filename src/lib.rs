@@ -199,7 +199,7 @@ pub enum InstructionOperands {
 }
 
 impl InstructionOperands {
-    fn discrim(&self) -> u16 {
+    const fn discrim(&self) -> u16 {
         match self {
             InstructionOperands::JMP { .. } => 0b000,
             InstructionOperands::WAIT { .. } => 0b001,
@@ -213,7 +213,7 @@ impl InstructionOperands {
         }
     }
 
-    fn operands(&self) -> (u8, u8) {
+    const fn operands(&self) -> (u8, u8) {
         match self {
             InstructionOperands::JMP { condition, address } => (*condition as u8, *address),
             InstructionOperands::WAIT {
@@ -222,14 +222,14 @@ impl InstructionOperands {
                 index,
                 relative,
             } => {
-                if *relative && *source != WaitSource::IRQ {
+                if *relative && !matches!(*source, WaitSource::IRQ) {
                     panic!("relative flag should only be used with WaitSource::IRQ");
                 }
                 if matches!(*source, WaitSource::IRQ) && *index > 7 {
                     panic!("Index for WaitSource::IRQ should be in range 0..=7");
                 }
                 (
-                    polarity << 2 | (*source as u8),
+                    (*polarity) << 2 | (*source as u8),
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
             }
@@ -269,7 +269,7 @@ impl InstructionOperands {
 
     /// Encode these operands into binary representation.
     /// Note that this output does not take side set and delay into account.
-    pub fn encode(&self) -> u16 {
+    pub const fn encode(&self) -> u16 {
         let mut data: u16 = 0;
         data |= self.discrim() << 13;
         let (o0, o1) = self.operands();
@@ -302,7 +302,7 @@ impl InstructionOperands {
                         } else {
                             o1
                         },
-                        relative: o1 & 0b10000 != 0,
+                        relative: source == WaitSource::IRQ && (o1 & 0b10000) != 0,
                     })
             }
             0b010 => InSource::try_from(o0)
@@ -936,6 +936,7 @@ macro_rules! instr_test {
 
 instr_test!(wait(0, WaitSource::IRQ, 2, false), 0b001_00000_010_00010);
 instr_test!(wait(1, WaitSource::IRQ, 7, false), 0b001_00000_110_00111);
+instr_test!(wait(1, WaitSource::GPIO, 16, false), 0b001_00000_100_10000);
 instr_test!(
     wait_with_delay(0, WaitSource::IRQ, 2, false, 30),
     0b001_11110_010_00010
