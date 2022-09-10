@@ -225,6 +225,9 @@ impl InstructionOperands {
                 if *relative && !matches!(*source, WaitSource::IRQ) {
                     panic!("relative flag should only be used with WaitSource::IRQ");
                 }
+                if matches!(*source, WaitSource::IRQ) && *index > 7 {
+                    panic!("Index for WaitSource::IRQ should be in range 0..=7");
+                }
                 (
                     (*polarity) << 2 | (*source as u8),
                     *index | (if *relative { 0b10000 } else { 0 }),
@@ -294,8 +297,12 @@ impl InstructionOperands {
                     .map(|source| InstructionOperands::WAIT {
                         polarity: o0 >> 2,
                         source,
-                        index: o1,
-                        relative: (o1 & 0b10000 != 0) && source == WaitSource::IRQ,
+                        index: if source == WaitSource::IRQ {
+                            o1 & 0b00111
+                        } else {
+                            o1
+                        },
+                        relative: source == WaitSource::IRQ && (o1 & 0b10000) != 0,
                     })
             }
             0b010 => InSource::try_from(o0)
@@ -927,19 +934,19 @@ macro_rules! instr_test {
     };
 }
 
-instr_test!(wait(0, WaitSource::IRQ, 10, false), 0b001_00000_010_01010);
-instr_test!(wait(1, WaitSource::IRQ, 15, false), 0b001_00000_110_01111);
+instr_test!(wait(0, WaitSource::IRQ, 2, false), 0b001_00000_010_00010);
+instr_test!(wait(1, WaitSource::IRQ, 7, false), 0b001_00000_110_00111);
 instr_test!(wait(1, WaitSource::GPIO, 16, false), 0b001_00000_100_10000);
 instr_test!(
-    wait_with_delay(0, WaitSource::IRQ, 10, false, 30),
-    0b001_11110_010_01010
+    wait_with_delay(0, WaitSource::IRQ, 2, false, 30),
+    0b001_11110_010_00010
 );
 instr_test!(
-    wait_with_side_set(0, WaitSource::IRQ, 10, false, 0b10101),
-    0b001_10101_010_01010,
+    wait_with_side_set(0, WaitSource::IRQ, 2, false, 0b10101),
+    0b001_10101_010_00010,
     SideSet::new(false, 5, false)
 );
-instr_test!(wait(0, WaitSource::IRQ, 10, true), 0b001_00000_010_11010);
+instr_test!(wait(0, WaitSource::IRQ, 2, true), 0b001_00000_010_10010);
 
 #[test]
 #[should_panic]
