@@ -298,7 +298,7 @@ impl InstructionOperands {
                         polarity: o0 >> 2,
                         source,
                         index: if source == WaitSource::IRQ {
-                            o1 & 7
+                            o1 & 0b00111
                         } else {
                             o1
                         },
