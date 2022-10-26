@@ -23,7 +23,7 @@ grammar();
 
 match {
   r"[\t\f\v ]" => {}, // ignore whitespace
-  r"(\r?\n)?;[^\n\r]*" => {}, // ignore `;` comments
+  r"(\r?\n)?(;|//)[^\n\r]*" => {}, // ignore `;` and `//` comments
   r"\r?\n" => NEWLINE,
   r"% c-sdk \{[^%]*%}" => {}, // ignore `% c-sdk { ... }`
   r"\.lang_opt [^\n\r]*" => LANG_OPT, // lex `.lang_opt` directives

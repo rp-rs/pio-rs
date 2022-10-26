@@ -1,3 +1,6 @@
+// Example comment
+; Example comment
+
 .define public foo 3
 
 .program test
