@@ -474,7 +474,7 @@ impl SideSet {
     pub const fn new(opt: bool, bits: u8, pindirs: bool) -> SideSet {
         SideSet {
             opt,
-            bits: bits + if opt { 1 } else { 0 },
+            bits: bits + opt as u8,
             max: (1 << bits) - 1,
             pindirs,
         }
