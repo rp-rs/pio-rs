@@ -339,11 +339,11 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
                         side_set_pindirs = *pindirs;
                     }
                     ParsedDirective::WrapTarget => {
-                        assert!(wrap_target == None);
+                        assert!(wrap_target.is_none());
                         wrap_target = Some(instr_index);
                     }
                     ParsedDirective::Wrap => {
-                        assert!(wrap == None);
+                        assert!(wrap.is_none());
                         wrap = Some(instr_index - 1);
                     }
                     _ => {}
