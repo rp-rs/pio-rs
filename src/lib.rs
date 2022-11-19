@@ -786,6 +786,12 @@ pub struct Program<const PROGRAM_SIZE: usize> {
     /// Offset at which the program must be loaded.
     ///
     /// Most often 0 if defined. This might be needed when using data based `JMP`s.
+    ///
+    /// NOTE: Instruction addresses in JMP instructions as well as
+    /// wrap source/target are calculated as if the origin was 0.
+    /// Functions loading the program into PIO instruction memory will
+    /// adjust those addresses accordingly if the program is loaded
+    /// to a non-zero origin address.
     pub origin: Option<u8>,
     /// Wrapping behavior for this program.
     pub wrap: Wrap,
