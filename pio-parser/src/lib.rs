@@ -387,7 +387,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
 
 #[test]
 fn test() {
-    let p = Program::parse_program(
+    let p = Parser::<32>::parse_program(
         "
     label:
       pull
@@ -398,7 +398,7 @@ fn test() {
     .unwrap();
 
     assert_eq!(
-        p.code,
+        &p.program.code[..],
         &[
             // LABEL:
             0b100_00000_101_00000, // PULL
@@ -406,13 +406,19 @@ fn test() {
             0b000_00000_000_00000, // JMP LABEL
         ]
     );
-    assert_eq!(p.origin, None);
-    assert_eq!(p.wrap, (0, 2));
+    assert_eq!(p.program.origin, None);
+    assert_eq!(
+        p.program.wrap,
+        pio::Wrap {
+            source: 2,
+            target: 0,
+        }
+    );
 }
 
 #[test]
 fn test_side_set() {
-    let p = Program::parse_program(
+    let p = Parser::<32>::parse_program(
         "
     .side_set 1 opt
     .origin 5
@@ -428,7 +434,7 @@ fn test_side_set() {
     .unwrap();
 
     assert_eq!(
-        p.code,
+        &p.program.code[..],
         &[
             // LABEL:
             0b100_00000_101_00000, // PULL
@@ -436,6 +442,12 @@ fn test_side_set() {
             0b000_11000_000_00000, // JMP LABEL, SIDE 1
         ]
     );
-    assert_eq!(p.origin, Some(5));
-    assert_eq!(p.wrap, (1, 1));
+    assert_eq!(p.program.origin, Some(5));
+    assert_eq!(
+        p.program.wrap,
+        pio::Wrap {
+            source: 1,
+            target: 1,
+        }
+    );
 }
