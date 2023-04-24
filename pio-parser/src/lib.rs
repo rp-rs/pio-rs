@@ -213,10 +213,11 @@ impl<'a> ProgramState<'a> {
     }
 
     fn resolve(&self, name: &str) -> i32 {
-        match self.defines.get(name) {
-            Some(v) => v.1,
-            None => self.file_state.defines[name].1,
-        }
+        self.defines
+            .get(name)
+            .or_else(|| self.file_state.defines.get(name))
+            .unwrap_or_else(|| panic!("Unknown label {}", name))
+            .1
     }
 
     fn public_defines(&self) -> HashMap<String, i32> {
@@ -438,4 +439,15 @@ fn test_side_set() {
     );
     assert_eq!(p.origin, Some(5));
     assert_eq!(p.wrap, (1, 1));
+}
+
+#[test]
+#[should_panic(expected = "Unknown label some_unknown_label")]
+fn test_unknown_label() {
+    let _ = Parser::<32>::parse_program(
+        "
+    jmp some_unknown_label
+    ",
+    )
+    .unwrap();
 }
