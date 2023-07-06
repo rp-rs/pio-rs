@@ -151,7 +151,7 @@ pub enum SetDestination {
     // RESERVED = 0b111,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum InstructionOperands {
     JMP {
         condition: JmpCondition,
@@ -374,7 +374,7 @@ impl InstructionOperands {
 }
 
 /// A PIO instruction.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Instruction {
     pub operands: InstructionOperands,
     pub delay: u8,
