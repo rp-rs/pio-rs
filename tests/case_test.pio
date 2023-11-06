@@ -11,6 +11,7 @@ public label:
     in null, 1
     out pc, 1
     push block
+    push iffull
     pull noblock
     mov exec, status
     irq wait 3
@@ -32,6 +33,7 @@ label:
     IN NULL, 1
     OUT PC, 1
     PUSH BLOCK
+    PUSH IfFull
     PULL NOBLOCK
     MOV EXEC, STATUS
     IRQ WAIT 3

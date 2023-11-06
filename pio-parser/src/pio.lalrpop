@@ -57,6 +57,8 @@ match {
   r"(?i)nowait" => "nowait",
   r"(?i)clear" => "clear",
   r"(?i)public" => "public",
+  r"(?i)IfFull" => "iffull",
+  
 } else {
   _
 }
