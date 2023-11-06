@@ -102,5 +102,18 @@ fn test_case() {
         options(max_program_size = 32)
     );
 
+    let p_test_side = pio_proc::pio_file!(
+        "./tests/case_test.pio",
+        select_program("variable_case_side_ref"),
+        options(max_program_size = 32)
+    );
+
+    let p_ref_side = pio_proc::pio_file!(
+        "./tests/case_test.pio",
+        select_program("variable_case_side"),
+        options(max_program_size = 32)
+    );
+
     assert_eq!(&*p_test.program.code, &*p_ref.program.code);
+    assert_eq!(&*p_test_side.program.code, &*p_ref_side.program.code);
 }

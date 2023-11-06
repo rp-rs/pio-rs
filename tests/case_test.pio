@@ -43,3 +43,11 @@ label:
     IRQ CLEAR 1
     IRQ SET 1
     SET PINDIRS, 0
+
+.program variable_case_side_ref
+.side_set 1
+    out pins 1 side 0
+
+.program variable_case_side
+.side_set 1
+    out pins 1 SIDE 0

@@ -59,6 +59,7 @@ match {
   r"(?i)public" => "public",
   r"(?i)IfFull" => "iffull",
   r"(?i)IfEmpty" => "ifempty",
+  r"(?i)side" => "side",
 } else {
   _
 }
