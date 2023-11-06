@@ -1,5 +1,5 @@
 .program case_reference
-label:
+public label:
     jmp label
     jmp label
     mov pins, isr
