@@ -1,0 +1,41 @@
+.program case_reference
+label:
+    jmp label
+    jmp label
+    mov pins, isr
+    mov osr, x
+    wait 1 gpio 1 
+    nop
+    wait 1 pin 1
+    wait 1 irq 1
+    in null, 1
+    out pc, 1
+    push block
+    pull noblock
+    mov exec, status
+    irq wait 3
+    irq nowait 2
+    irq clear 1
+    irq set 1
+    set pindirs, 0
+
+.program variable_case
+label:
+    JMp label
+    JMP label
+    MOV PINS, ISR
+    MOV OSR, X
+    WAIT 1 GPIO 1 
+    NOP
+    WAIT 1 PIN 1
+    WAIT 1 IRQ 1
+    IN NULL, 1
+    OUT PC, 1
+    PUSH BLOCK
+    PULL NOBLOCK
+    MOV EXEC, STATUS
+    IRQ WAIT 3
+    IRQ NOWAIT 2
+    IRQ CLEAR 1
+    IRQ SET 1
+    SET PINDIRS, 0
