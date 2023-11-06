@@ -58,7 +58,7 @@ match {
   r"(?i)clear" => "clear",
   r"(?i)public" => "public",
   r"(?i)IfFull" => "iffull",
-  
+  r"(?i)IfEmpty" => "ifempty",
 } else {
   _
 }

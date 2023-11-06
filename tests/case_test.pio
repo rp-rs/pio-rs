@@ -12,6 +12,7 @@ public label:
     out pc, 1
     push block
     push iffull
+    pull ifempty
     pull noblock
     mov exec, status
     irq wait 3
@@ -34,6 +35,7 @@ label:
     OUT PC, 1
     PUSH BLOCK
     PUSH IfFull
+    PULL IfEmpty
     PULL NOBLOCK
     MOV EXEC, STATUS
     IRQ WAIT 3
