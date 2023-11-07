@@ -20,6 +20,8 @@ public label:
     irq clear 1
     irq set 1
     set pindirs, 0
+    jmp !x label
+    jmp !osre label
 
 .program variable_case
 label:
@@ -43,6 +45,8 @@ label:
     IRQ CLEAR 1
     IRQ SET 1
     SET PINDIRS, 0
+    JMP !X label
+    JMP !OSRE label
 
 .program variable_case_side_ref
 .side_set 1
