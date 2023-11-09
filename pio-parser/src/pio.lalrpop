@@ -61,6 +61,14 @@ match {
   r"(?i)IfEmpty" => "ifempty",
   r"(?i)side" => "side",
   r"(?i)osre" => "osre",
+  r"(?i)\.define" => ".define",
+  r"(?i)\.program" => ".program",
+  r"(?i)\.origin" => ".origin",
+  r"(?i)\.side_set" => ".side_set",
+  r"(?i)\.wrap_target" => ".wrap_target",
+  r"(?i)\.wrap" => ".wrap",
+  r"(?i)\.lang_opt" => ".lang_opt",
+  r"(?i)\.word" => ".word",
 } else {
   _
 }
