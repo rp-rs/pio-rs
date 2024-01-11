@@ -121,11 +121,13 @@ struct PioFileMacroArgs {
     max_program_size: Expr,
     program: String,
     program_name: Option<(String, LitStr)>,
+    file_path: PathBuf,
 }
 
 impl syn::parse::Parse for PioFileMacroArgs {
     fn parse(stream: syn::parse::ParseStream) -> syn::parse::Result<Self> {
         let mut program = String::new();
+        let mut file_path = PathBuf::new();
 
         // Parse the list of instructions
         if let Ok(s) = stream.parse::<LitStr>() {
@@ -151,6 +153,8 @@ impl syn::parse::Parse for PioFileMacroArgs {
             if !pathbuf.exists() {
                 abort!(s, "the file '{}' does not exist", pathbuf.display());
             }
+
+            file_path = pathbuf.to_owned();
 
             match fs::read(pathbuf) {
                 Ok(content) => match std::str::from_utf8(&content) {
@@ -203,6 +207,7 @@ impl syn::parse::Parse for PioFileMacroArgs {
             program_name: select_program.map(|v| (v.name, v.ident)),
             max_program_size,
             program,
+            file_path,
         })
     }
 }
@@ -279,7 +284,12 @@ pub fn pio_file(item: TokenStream) -> TokenStream {
         Err(e) => return parse_error(e, &args.program).into(),
     };
 
-    to_codegen(program, args.max_program_size).into()
+    to_codegen(
+        program,
+        args.max_program_size,
+        args.file_path.into_os_string().into_string().ok(),
+    )
+    .into()
 }
 
 /// A macro which invokes the PIO assembler at compile time.
@@ -295,12 +305,13 @@ pub fn pio_asm(item: TokenStream) -> TokenStream {
         Err(e) => return parse_error(e, &args.program).into(),
     };
 
-    to_codegen(program, args.max_program_size).into()
+    to_codegen(program, args.max_program_size, None).into()
 }
 
 fn to_codegen(
     program: &pio::ProgramWithDefines<HashMap<String, i32>, { MAX_PROGRAM_SIZE }>,
     max_program_size: Expr,
+    file: Option<String>,
 ) -> proc_macro2::TokenStream {
     let pio::ProgramWithDefines {
         program,
@@ -381,18 +392,30 @@ fn to_codegen(
     .parse()
     .unwrap();
     let program_size = max_program_size;
+
+    // This makes sure the file is added to the list
+    // of tracked files, so a change of that file triggers
+    // a recompile. Should be replaced by
+    // `proc_macro::tracked_path::path` when it is stable.
+    let dummy_include = match file {
+        Some(file_path) => quote! {let _ = include_bytes!( #file_path );},
+        None => quote!(),
+    };
     quote! {
         {
             #defines_struct
-            ::pio::ProgramWithDefines {
-                program: ::pio::Program::<{ #program_size }> {
-                    code: #code,
-                    origin: #origin,
-                    wrap: #wrap,
-                    side_set: #side_set,
-                    version: #version,
-                },
-                public_defines: #defines_init,
+            {
+                #dummy_include;
+                ::pio::ProgramWithDefines {
+                    program: ::pio::Program::<{ #program_size }> {
+                        code: #code,
+                        origin: #origin,
+                        wrap: #wrap,
+                        side_set: #side_set,
+                        version: #version,
+                    },
+                    public_defines: #defines_init,
+                }
             }
         }
     }
