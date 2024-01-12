@@ -284,7 +284,12 @@ pub fn pio_file(item: TokenStream) -> TokenStream {
         Err(e) => return parse_error(e, &args.program).into(),
     };
 
-    to_codegen(program, args.max_program_size, args.file_path.into_os_string().into_string().ok()).into()
+    to_codegen(
+        program,
+        args.max_program_size,
+        args.file_path.into_os_string().into_string().ok(),
+    )
+    .into()
 }
 
 /// A macro which invokes the PIO assembler at compile time.
@@ -390,7 +395,7 @@ fn to_codegen(
     // a recompile. Should be replaced by
     // `proc_macro::tracked_path::path` when it is stable.
     let dummy_include = match file {
-        Some(file_path) => quote!{let _ = include_bytes!( #file_path );},
+        Some(file_path) => quote! {let _ = include_bytes!( #file_path );},
         None => quote!(),
     };
     quote! {
