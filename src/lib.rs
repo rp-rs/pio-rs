@@ -233,7 +233,7 @@ impl InstructionOperands {
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
             }
-            InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count),
+            InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count & 0b11111),
             InstructionOperands::OUT {
                 destination,
                 bit_count,
