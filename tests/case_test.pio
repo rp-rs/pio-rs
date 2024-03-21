@@ -1,0 +1,65 @@
+.DEFINE PUBLIC me_a_symbol 2
+
+.program case_reference
+public label:
+    jmp label
+    jmp label
+    mov pins, isr
+    mov osr, x
+.wrap_target
+    wait 1 gpio 1 
+    nop
+    wait 1 pin 1
+    wait 1 irq 1
+    in null, 1
+    out pc, 1
+    push block
+    push iffull
+    pull ifempty
+    pull noblock
+    mov exec, status
+    irq wait 3
+    irq nowait 2
+    irq clear 1
+    irq set 1
+.wrap
+    set pindirs, 0
+    jmp !x label
+    jmp !osre label
+
+.program variable_case
+PUBLIC label:
+    JMp label
+    JMP label
+    MOV PINS, ISR
+    MOV OSR, X
+.WRAP_TARGET
+    WAIT 1 GPIO 1 
+    NOP
+    WAIT 1 PIN 1
+    WAIT 1 IRQ 1
+    IN NULL, 1
+    OUT PC, 1
+    PUSH BLOCK
+    PUSH IfFull
+    PULL IfEmpty
+    PULL NOBLOCK
+    MOV EXEC, STATUS
+    IRQ WAIT 3
+    IRQ NOWAIT 2
+    IRQ CLEAR 1
+    IRQ SET 1
+.WRAP
+    SET PINDIRS, 0
+    JMP !X label
+    JMP !OSRE label
+
+.program variable_case_side_ref
+.origin 5
+.side_set 1
+    out pins 1 side 0
+
+.PROGRAM variable_case_side
+.ORIGIN 5
+.SIDE_SET 1
+    out pins 1 SIDE 0
