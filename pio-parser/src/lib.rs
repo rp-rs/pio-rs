@@ -11,6 +11,7 @@ use std::collections::HashMap;
 
 mod parser {
     #![allow(clippy::all)]
+    #![allow(unused)]
     include!(concat!(env!("OUT_DIR"), "/pio.rs"));
 }
 
@@ -63,6 +64,7 @@ pub(crate) enum ParsedDirective<'input> {
     },
     WrapTarget,
     Wrap,
+    #[allow(unused)]
     LangOpt(&'input str),
 }
 
