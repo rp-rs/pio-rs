@@ -233,11 +233,21 @@ impl InstructionOperands {
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
             }
-            InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count & 0b11111),
+            InstructionOperands::IN { source, bit_count } => {
+                if *bit_count > 32 {
+                    panic!("bit_count must be from 1 to 32");
+                }
+                (*source as u8, *bit_count & 0b11111)
+            }
             InstructionOperands::OUT {
                 destination,
                 bit_count,
-            } => (*destination as u8, *bit_count & 0b11111),
+            } => {
+                if *bit_count > 32 {
+                    panic!("bit_count must be from 1 to 32");
+                }
+                (*destination as u8, *bit_count & 0b11111)
+            }
             InstructionOperands::PUSH { if_full, block } => {
                 ((*if_full as u8) << 1 | (*block as u8), 0)
             }
