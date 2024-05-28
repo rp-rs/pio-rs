@@ -963,8 +963,10 @@ fn test_wait_relative_not_used_on_irq() {
 }
 
 instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);
+instr_test!(r#in(InSource::Y, 32), 0b010_00000_010_00000);
 
 instr_test!(out(OutDestination::Y, 10), 0b011_00000_010_01010);
+instr_test!(out(OutDestination::Y, 32), 0b011_00000_010_00000);
 
 instr_test!(push(true, false), 0b100_00000_010_00000);
 instr_test!(push(false, true), 0b100_00000_001_00000);
