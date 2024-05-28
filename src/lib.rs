@@ -968,6 +968,22 @@ instr_test!(r#in(InSource::Y, 32), 0b010_00000_010_00000);
 instr_test!(out(OutDestination::Y, 10), 0b011_00000_010_01010);
 instr_test!(out(OutDestination::Y, 32), 0b011_00000_010_00000);
 
+#[test]
+#[should_panic(expected = "bit_count must be from 1 to 32")]
+fn test_in_bit_width_exceeds_max_should_panic() {
+    let mut a = Assembler::<32>::new();
+    a.r#in(InSource::Y, 33);
+    a.assemble_program();
+}
+
+#[test]
+#[should_panic(expected = "bit_count must be from 1 to 32")]
+fn test_out_bit_width_exceeds_max_should_panic() {
+    let mut a = Assembler::<32>::new();
+    a.out(OutDestination::X, 33);
+    a.assemble_program();
+}
+
 instr_test!(push(true, false), 0b100_00000_010_00000);
 instr_test!(push(false, true), 0b100_00000_001_00000);
 
