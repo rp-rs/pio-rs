@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed encoding of IN instruction with `bit_count` == 32
+
 ## [0.2.1] [Crates.io](https://crates.io/crates/pio-rs/0.2.1) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.2.1)
 
 - Fixed the search path for `pio_file` when using relative paths
