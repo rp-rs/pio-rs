@@ -233,11 +233,21 @@ impl InstructionOperands {
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
             }
-            InstructionOperands::IN { source, bit_count } => (*source as u8, *bit_count),
+            InstructionOperands::IN { source, bit_count } => {
+                if *bit_count == 0 || *bit_count > 32 {
+                    panic!("bit_count must be from 1 to 32");
+                }
+                (*source as u8, *bit_count & 0b11111)
+            }
             InstructionOperands::OUT {
                 destination,
                 bit_count,
-            } => (*destination as u8, *bit_count & 0b11111),
+            } => {
+                if *bit_count == 0 || *bit_count > 32 {
+                    panic!("bit_count must be from 1 to 32");
+                }
+                (*destination as u8, *bit_count & 0b11111)
+            }
             InstructionOperands::PUSH { if_full, block } => {
                 ((*if_full as u8) << 1 | (*block as u8), 0)
             }
@@ -309,14 +319,14 @@ impl InstructionOperands {
                 .ok()
                 .map(|source| InstructionOperands::IN {
                     source,
-                    bit_count: o1,
+                    bit_count: if o1 == 0 { 32 } else { o1 },
                 }),
             0b011 => {
                 OutDestination::try_from(o0)
                     .ok()
                     .map(|destination| InstructionOperands::OUT {
                         destination,
-                        bit_count: o1,
+                        bit_count: if o1 == 0 { 32 } else { o1 },
                     })
             }
             0b100 => {
@@ -963,8 +973,42 @@ fn test_wait_relative_not_used_on_irq() {
 }
 
 instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);
+instr_test!(r#in(InSource::Y, 32), 0b010_00000_010_00000);
 
 instr_test!(out(OutDestination::Y, 10), 0b011_00000_010_01010);
+instr_test!(out(OutDestination::Y, 32), 0b011_00000_010_00000);
+
+#[test]
+#[should_panic(expected = "bit_count must be from 1 to 32")]
+fn test_in_bit_width_zero_should_panic() {
+    let mut a = Assembler::<32>::new();
+    a.r#in(InSource::Y, 0);
+    a.assemble_program();
+}
+
+#[test]
+#[should_panic(expected = "bit_count must be from 1 to 32")]
+fn test_in_bit_width_exceeds_max_should_panic() {
+    let mut a = Assembler::<32>::new();
+    a.r#in(InSource::Y, 33);
+    a.assemble_program();
+}
+
+#[test]
+#[should_panic(expected = "bit_count must be from 1 to 32")]
+fn test_out_bit_width_zero_should_panic() {
+    let mut a = Assembler::<32>::new();
+    a.out(OutDestination::X, 0);
+    a.assemble_program();
+}
+
+#[test]
+#[should_panic(expected = "bit_count must be from 1 to 32")]
+fn test_out_bit_width_exceeds_max_should_panic() {
+    let mut a = Assembler::<32>::new();
+    a.out(OutDestination::X, 33);
+    a.assemble_program();
+}
 
 instr_test!(push(true, false), 0b100_00000_010_00000);
 instr_test!(push(false, true), 0b100_00000_001_00000);
