@@ -14,10 +14,10 @@ members = ["pio-proc", "pio-parser"]
 [dependencies]
 arrayvec = { version = "0.7", default_features = false }
 paste = "1.0"
-num_enum = { version = "0.5", default_features = false }
+num_enum = { version = "0.7", default_features = false }
 
 [dev-dependencies]
 test-generator = "0.3.0"
-pretty_assertions = "0.6"
+pretty_assertions = "1.4"
 pio-proc = { path = "./pio-proc" }
 pio-parser = { path = "./pio-parser" }
