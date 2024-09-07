@@ -8,12 +8,18 @@ use pio::{
     MovSource, OutDestination, ProgramWithDefines, SetDestination, WaitSource,
 };
 
+#[cfg(feature = "rp2350")]
+use pio::MovRxIndex;
+
 use std::collections::HashMap;
 
 mod parser {
     #![allow(clippy::all)]
     #![allow(unused)]
-    include!(concat!(env!("OUT_DIR"), "/pio.rs"));
+    #[cfg(not(feature = "rp2350"))]
+    include!(concat!(env!("OUT_DIR"), "/src/rp2040.rs"));
+    #[cfg(feature = "rp2350")]
+    include!(concat!(env!("OUT_DIR"), "/src/rp2350.rs"));
 }
 
 #[derive(Debug)]
@@ -86,6 +92,92 @@ impl<'i> ParsedInstruction<'i> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ParsedMovDestination {
+    PINS,
+    X,
+    Y,
+    #[cfg(feature = "rp2350")]
+    PINDIRS,
+    EXEC,
+    PC,
+    ISR,
+    OSR,
+    RXFIFOY,
+    RXFIFO0,
+    RXFIFO1,
+    RXFIFO2,
+    RXFIFO3,
+}
+
+#[derive(Debug)]
+enum MovDestInternal {
+    Mov(MovDestination),
+    Fifo(MovRxIndex),
+}
+
+impl From<ParsedMovDestination> for MovDestInternal {
+    fn from(value: ParsedMovDestination) -> Self {
+        match value {
+            ParsedMovDestination::PINS => MovDestInternal::Mov(MovDestination::PINS),
+            ParsedMovDestination::X => MovDestInternal::Mov(MovDestination::X),
+            ParsedMovDestination::Y => MovDestInternal::Mov(MovDestination::Y),
+            #[cfg(feature = "rp2350")]
+            ParsedMovDestination::PINDIRS => MovDestInternal::Mov(MovDestination::PINDIRS),
+            ParsedMovDestination::EXEC => MovDestInternal::Mov(MovDestination::EXEC),
+            ParsedMovDestination::PC => MovDestInternal::Mov(MovDestination::PC),
+            ParsedMovDestination::ISR => MovDestInternal::Mov(MovDestination::ISR),
+            ParsedMovDestination::OSR => MovDestInternal::Mov(MovDestination::OSR),
+            ParsedMovDestination::RXFIFOY => MovDestInternal::Fifo(MovRxIndex::RXFIFOY),
+            ParsedMovDestination::RXFIFO0 => MovDestInternal::Fifo(MovRxIndex::RXFIFO0),
+            ParsedMovDestination::RXFIFO1 => MovDestInternal::Fifo(MovRxIndex::RXFIFO1),
+            ParsedMovDestination::RXFIFO2 => MovDestInternal::Fifo(MovRxIndex::RXFIFO2),
+            ParsedMovDestination::RXFIFO3 => MovDestInternal::Fifo(MovRxIndex::RXFIFO3),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ParsedMovSource {
+    PINS,
+    X,
+    Y,
+    NULL,
+    STATUS,
+    ISR,
+    OSR,
+    RXFIFOY,
+    RXFIFO0,
+    RXFIFO1,
+    RXFIFO2,
+    RXFIFO3,
+}
+
+#[derive(Debug)]
+enum MovSrcInternal {
+    Mov(MovSource),
+    Fifo(MovRxIndex),
+}
+
+impl From<ParsedMovSource> for MovSrcInternal {
+    fn from(value: ParsedMovSource) -> Self {
+        match value {
+            ParsedMovSource::PINS => MovSrcInternal::Mov(MovSource::PINS),
+            ParsedMovSource::X => MovSrcInternal::Mov(MovSource::X),
+            ParsedMovSource::Y => MovSrcInternal::Mov(MovSource::Y),
+            ParsedMovSource::NULL => MovSrcInternal::Mov(MovSource::NULL),
+            ParsedMovSource::STATUS => MovSrcInternal::Mov(MovSource::STATUS),
+            ParsedMovSource::ISR => MovSrcInternal::Mov(MovSource::ISR),
+            ParsedMovSource::OSR => MovSrcInternal::Mov(MovSource::OSR),
+            ParsedMovSource::RXFIFOY => MovSrcInternal::Fifo(MovRxIndex::RXFIFOY),
+            ParsedMovSource::RXFIFO0 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO0),
+            ParsedMovSource::RXFIFO1 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO1),
+            ParsedMovSource::RXFIFO2 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO2),
+            ParsedMovSource::RXFIFO3 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO3),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum ParsedOperands<'input> {
     JMP {
@@ -115,9 +207,9 @@ pub(crate) enum ParsedOperands<'input> {
         block: bool,
     },
     MOV {
-        destination: MovDestination,
+        destination: ParsedMovDestination,
         op: MovOperation,
-        source: MovSource,
+        source: ParsedMovSource,
     },
     IRQ {
         clear: bool,
@@ -172,11 +264,24 @@ impl<'i> ParsedOperands<'i> {
                 destination,
                 op,
                 source,
-            } => InstructionOperands::MOV {
-                destination: *destination,
-                op: *op,
-                source: *source,
-            },
+            } => {
+                let source_internal = (*source).into();
+                let dest_internal = (*destination).into();
+                match (source_internal, dest_internal) {
+                    (MovSrcInternal::Mov(MovSource::ISR), MovDestInternal::Fifo(index)) => {
+                        InstructionOperands::MOVTORX { index }
+                    }
+                    (MovSrcInternal::Fifo(index), MovDestInternal::Mov(MovDestination::OSR)) => {
+                        InstructionOperands::MOVTORX { index }
+                    }
+                    (MovSrcInternal::Mov(s), MovDestInternal::Mov(d)) => InstructionOperands::MOV {
+                        destination: d,
+                        op: *op,
+                        source: s,
+                    },
+                    (d, s) => panic!("Illegal Mov src/dest combination: {:?} {:?}", d, s),
+                }
+            }
             ParsedOperands::IRQ {
                 clear,
                 wait,
@@ -421,6 +526,42 @@ fn test() {
         p.program.wrap,
         pio::Wrap {
             source: 2,
+            target: 0,
+        }
+    );
+}
+
+#[test]
+#[cfg(feature = "rp2350")]
+fn test_rp2350() {
+    let p = Parser::<32>::parse_program(
+        "
+    label:
+      mov osr, rxfifo0
+      mov rxfifo1, isr
+      mov pins, isr
+      mov osr, x
+      jmp label
+    ",
+    )
+    .unwrap();
+
+    assert_eq!(
+        &p.program.code[..],
+        &[
+            // LABEL:
+            0b100_00000_1001_1_000, // MOV OSR, RXFIFO0
+            0b100_00000_0001_1_001, // MOV RXFIFO1, ISR
+            0b101_00000_000_00_110, // MOV PINS, ISR
+            0b101_00000_111_00_001, // MOV OSR, X
+            0b000_00000_000_00000,  // JMP LABEL
+        ]
+    );
+    assert_eq!(p.program.origin, None);
+    assert_eq!(
+        p.program.wrap,
+        pio::Wrap {
+            source: 4,
             target: 0,
         }
     );

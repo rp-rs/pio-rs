@@ -74,7 +74,8 @@ pub enum WaitSource {
     GPIO = 0b00,
     PIN = 0b01,
     IRQ = 0b10,
-    // RESERVED = 0b11,
+    #[cfg(feature = "rp2350")]
+    JMPPIN = 0b11,
 }
 
 #[repr(u8)]
@@ -109,7 +110,8 @@ pub enum MovDestination {
     PINS = 0b000,
     X = 0b001,
     Y = 0b010,
-    // RESERVED = 0b011,
+    #[cfg(feature = "rp2350")]
+    PINDIRS = 0b011,
     EXEC = 0b100,
     PC = 0b101,
     ISR = 0b110,
@@ -136,6 +138,17 @@ pub enum MovSource {
     STATUS = 0b101,
     ISR = 0b110,
     OSR = 0b111,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[cfg(feature = "rp2350")]
+pub enum MovRxIndex {
+    RXFIFOY = 0b0000,
+    RXFIFO0 = 0b1000,
+    RXFIFO1 = 0b1001,
+    RXFIFO2 = 0b1010,
+    RXFIFO3 = 0b1011,
 }
 
 #[repr(u8)]
@@ -186,10 +199,19 @@ pub enum InstructionOperands {
         op: MovOperation,
         source: MovSource,
     },
+    #[cfg(feature = "rp2350")]
+    MOVTORX {
+        index: MovRxIndex,
+    },
+    #[cfg(feature = "rp2350")]
+    MOVFROMRX {
+        index: MovRxIndex,
+    },
     IRQ {
         clear: bool,
         wait: bool,
         index: u8,
+        // TODO: irq index mode, support interrupting next/prev sm
         relative: bool,
     },
     SET {
@@ -208,6 +230,10 @@ impl InstructionOperands {
             InstructionOperands::PUSH { .. } => 0b100,
             InstructionOperands::PULL { .. } => 0b100,
             InstructionOperands::MOV { .. } => 0b101,
+            #[cfg(feature = "rp2350")]
+            InstructionOperands::MOVTORX { .. } => 0b100,
+            #[cfg(feature = "rp2350")]
+            InstructionOperands::MOVFROMRX { .. } => 0b100,
             InstructionOperands::IRQ { .. } => 0b110,
             InstructionOperands::SET { .. } => 0b111,
         }
@@ -259,6 +285,10 @@ impl InstructionOperands {
                 op,
                 source,
             } => (*destination as u8, (*op as u8) << 3 | (*source as u8)),
+            #[cfg(feature = "rp2350")]
+            InstructionOperands::MOVTORX { index } => (0, 1 << 4 | *index as u8),
+            #[cfg(feature = "rp2350")]
+            InstructionOperands::MOVFROMRX { index } => (0b100, 1 << 4 | *index as u8),
             InstructionOperands::IRQ {
                 clear,
                 wait,
@@ -299,6 +329,7 @@ impl InstructionOperands {
         let discrim = instruction >> 13;
         let o0 = ((instruction >> 5) & 0b111) as u8;
         let o1 = (instruction & 0b11111) as u8;
+
         match discrim {
             0b000 => JmpCondition::try_from(o0)
                 .ok()
@@ -335,20 +366,48 @@ impl InstructionOperands {
                     })
             }
             0b100 => {
-                let if_flag = o0 & 0b010 != 0;
-                let block = o0 & 0b001 != 0;
-                if o1 != 0 {
-                    None
-                } else if o0 & 0b100 == 0 {
-                    Some(InstructionOperands::PUSH {
-                        if_full: if_flag,
-                        block,
-                    })
-                } else {
-                    Some(InstructionOperands::PULL {
-                        if_empty: if_flag,
-                        block,
-                    })
+                let p_o0 = ((instruction >> 4) & 0b1111) as u8;
+
+                let if_flag = p_o0 & 0b0100 != 0;
+                let block = p_o0 & 0b0010 != 0;
+
+                #[cfg(not(feature = "rp2350"))]
+                {
+                    if p_o0 & 0b1001 == 0b1000 {
+                        Some(InstructionOperands::PULL {
+                            if_empty: if_flag,
+                            block,
+                        })
+                    } else if p_o0 & 0b1001 == 0b0000 {
+                        Some(InstructionOperands::PUSH {
+                            if_full: if_flag,
+                            block,
+                        })
+                    } else {
+                        None
+                    }
+                }
+
+                #[cfg(feature = "rp2350")]
+                {
+                    let index = MovRxIndex::try_from((instruction & 0b1111) as u8);
+                    if p_o0 & 0b1001 == 0b1000 {
+                        Some(InstructionOperands::PULL {
+                            if_empty: if_flag,
+                            block,
+                        })
+                    } else if p_o0 & 0b1001 == 0b0000 {
+                        Some(InstructionOperands::PUSH {
+                            if_full: if_flag,
+                            block,
+                        })
+                    } else if p_o0 == 0b1001 {
+                        Some(InstructionOperands::MOVFROMRX { index: index.ok()? })
+                    } else if p_o0 == 0b0001 {
+                        Some(InstructionOperands::MOVTORX { index: index.ok()? })
+                    } else {
+                        None
+                    }
                 }
             }
             0b101 => match (
@@ -743,6 +802,26 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
         }
     );
 
+    #[cfg(feature = "rp2350")]
+    instr!(
+        /// Emit a `mov to rx` instruction.
+        mov_to_rx(self, index: MovRxIndex) {
+            InstructionOperands::MOVTORX {
+                index
+            }
+        }
+    );
+
+    #[cfg(feature = "rp2350")]
+    instr!(
+        /// Emit a `mov from rx` instruction.
+        mov_from_rx(self, index: MovRxIndex) {
+            InstructionOperands::MOVFROMRX {
+                index
+            }
+        }
+    );
+
     instr!(
         /// Emit an `irq` instruction using `clear` and `wait` with `index` which may be `relative`.
         irq(self, clear: bool, wait: bool, index: u8, relative: bool) {
@@ -1034,6 +1113,18 @@ instr_test!(irq(true, false, 0b11, false), 0b110_00000_010_00011);
 instr_test!(irq(false, true, 0b111, true), 0b110_00000_001_10111);
 
 instr_test!(set(SetDestination::Y, 10), 0b111_00000_010_01010);
+
+#[cfg(feature = "rp2350")]
+#[cfg(test)]
+mod rp2350_test {
+    use super::*;
+
+    instr_test!(mov_to_rx(MovRxIndex::RXFIFO3), 0b100_00000_0001_1011);
+    instr_test!(mov_to_rx(MovRxIndex::RXFIFOY), 0b100_00000_0001_0000);
+
+    instr_test!(mov_from_rx(MovRxIndex::RXFIFO3), 0b100_00000_1001_1011);
+    instr_test!(mov_from_rx(MovRxIndex::RXFIFOY), 0b100_00000_1001_0000);
+}
 
 /// This block ensures that README.md is checked when `cargo test` is run.
 #[cfg(doctest)]
