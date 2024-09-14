@@ -272,7 +272,7 @@ impl<'i> ParsedOperands<'i> {
                         InstructionOperands::MOVTORX { index }
                     }
                     (MovSrcInternal::Fifo(index), MovDestInternal::Mov(MovDestination::OSR)) => {
-                        InstructionOperands::MOVTORX { index }
+                        InstructionOperands::MOVFROMRX { index }
                     }
                     (MovSrcInternal::Mov(s), MovDestInternal::Mov(d)) => InstructionOperands::MOV {
                         destination: d,
@@ -537,8 +537,8 @@ fn test_rp2350() {
     let p = Parser::<32>::parse_program(
         "
     label:
-      mov osr, rxfifo0
-      mov rxfifo1, isr
+      mov osr, rxfifo[0]
+      mov rxfifo[1], isr
       mov pins, isr
       mov osr, x
       jmp label

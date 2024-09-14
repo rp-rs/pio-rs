@@ -256,11 +256,11 @@ ParsedMovDestination: ParsedMovDestination = {
   "pc" => ParsedMovDestination::PC,
   "isr" => ParsedMovDestination::ISR,
   "osr" => ParsedMovDestination::OSR,
-  "rxfifoy" => ParsedMovDestination::RXFIFOY,
-  "rxfifo0" => ParsedMovDestination::RXFIFO0,
-  "rxfifo1" => ParsedMovDestination::RXFIFO1,
-  "rxfifo2" => ParsedMovDestination::RXFIFO2,
-  "rxfifo3" => ParsedMovDestination::RXFIFO3,
+  "rxfifo[y]" => ParsedMovDestination::RXFIFOY,
+  "rxfifo[0]" => ParsedMovDestination::RXFIFO0,
+  "rxfifo[1]" => ParsedMovDestination::RXFIFO1,
+  "rxfifo[2]" => ParsedMovDestination::RXFIFO2,
+  "rxfifo[3]" => ParsedMovDestination::RXFIFO3,
 };
 
 MovOperation: MovOperation = {
@@ -277,11 +277,11 @@ ParsedMovSource: ParsedMovSource = {
   "status" => ParsedMovSource::STATUS,
   "isr" => ParsedMovSource::ISR,
   "osr" => ParsedMovSource::OSR,
-  "rxfifoy" => ParsedMovSource::RXFIFOY,
-  "rxfifo0" => ParsedMovSource::RXFIFO0,
-  "rxfifo1" => ParsedMovSource::RXFIFO1,
-  "rxfifo2" => ParsedMovSource::RXFIFO2,
-  "rxfifo3" => ParsedMovSource::RXFIFO3,
+  "rxfifo[y]" => ParsedMovSource::RXFIFOY,
+  "rxfifo[0]" => ParsedMovSource::RXFIFO0,
+  "rxfifo[1]" => ParsedMovSource::RXFIFO1,
+  "rxfifo[2]" => ParsedMovSource::RXFIFO2,
+  "rxfifo[3]" => ParsedMovSource::RXFIFO3,
 };
 
 IrqModifier: (bool, bool) = {
