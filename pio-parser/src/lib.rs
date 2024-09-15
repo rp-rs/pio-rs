@@ -1,4 +1,5 @@
 // PIO instr grouping is 3/5/3/5
+#![allow(clippy::manual_range_contains)]
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::upper_case_acronyms)]
 
