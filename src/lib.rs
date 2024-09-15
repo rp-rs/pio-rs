@@ -273,7 +273,12 @@ impl InstructionOperands {
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
             }
-            InstructionOperands::SET { destination, data } => (*destination as u8, *data),
+            InstructionOperands::SET { destination, data } => {
+                if *data > 0x1f {
+                    panic!("SET argument out of range");
+                }
+                (*destination as u8, *data)
+            }
         }
     }
 

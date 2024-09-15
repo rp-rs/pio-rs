@@ -1,4 +1,5 @@
 // PIO instr grouping is 3/5/3/5
+#![allow(clippy::manual_range_contains)]
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::upper_case_acronyms)]
 
@@ -189,7 +190,13 @@ impl<'i> ParsedOperands<'i> {
             },
             ParsedOperands::SET { destination, data } => InstructionOperands::SET {
                 destination: *destination,
-                data: data.reify(state) as u8,
+                data: {
+                    let arg = data.reify(state);
+                    if arg < 0 || arg > 0x1f {
+                        panic!("SET argument out of range: {}", arg);
+                    }
+                    arg as u8
+                },
             },
         }
     }
