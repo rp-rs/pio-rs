@@ -12,9 +12,9 @@ repository = "https://github.com/rp-rs/pio-rs"
 members = ["pio-proc", "pio-parser"]
 
 [dependencies]
-arrayvec = { version = "0.7", default_features = false }
+arrayvec = { version = "0.7", default-features = false }
 paste = "1.0"
-num_enum = { version = "0.7", default_features = false }
+num_enum = { version = "0.7", default-features = false }
 
 [dev-dependencies]
 test-generator = "0.3.0"

@@ -599,7 +599,7 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// Create a new unbound Label.
     pub fn label(&mut self) -> Label {
         Label {
-            state: LabelState::Unbound(core::u8::MAX),
+            state: LabelState::Unbound(u8::MAX),
         }
     }
 
@@ -616,7 +616,7 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
             LabelState::Bound(_) => panic!("cannot bind label twice"),
             LabelState::Unbound(mut patch) => {
                 let resolved_address = self.instructions.len() as u8;
-                while patch != core::u8::MAX {
+                while patch != u8::MAX {
                     // SAFETY: patch points to the next instruction to patch
                     let instr = unsafe { self.instructions.get_unchecked_mut(patch as usize) };
                     if let InstructionOperands::JMP { address, .. } = &mut instr.operands {
