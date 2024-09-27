@@ -9,11 +9,8 @@ license = "MIT"
 repository = "https://github.com/rp-rs/pio-rs"
 
 [dependencies]
-lalrpop-util = { version = "0.19.6", features = ["lexer"] }
+lalrpop-util = { version = "0.21.0", features = ["lexer"] }
 pio = { path = "..", version = "0.2.1" }
 
 [build-dependencies]
-lalrpop = "0.19.6"
-# This is only here to work around https://github.com/lalrpop/lalrpop/issues/750
-# It should be removed once that workaround is no longer needed.
-regex-syntax = { version = "0.6", default-features = false, features = ["unicode"] }
+lalrpop = "0.21.0"

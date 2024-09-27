@@ -402,7 +402,7 @@ fn parse_error(error: &pio_parser::ParseError, program_source: &str) -> proc_mac
         ParseError::InvalidToken { location } => {
             (*location..*location, vec!["invalid token".to_string()])
         }
-        ParseError::UnrecognizedEOF { location, expected } => (
+        ParseError::UnrecognizedEof { location, expected } => (
             *location..*location,
             vec![
                 "unrecognized eof".to_string(),
