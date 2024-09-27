@@ -6,9 +6,7 @@ use ::pio::{
   WaitSource,
   InSource,
   OutDestination,
-  MovDestination,
   MovOperation,
-  MovSource,
   SetDestination,
 };
 use crate::{
@@ -17,6 +15,8 @@ use crate::{
   ParsedDirective,
   ParsedInstruction,
   ParsedOperands,
+  ParsedMovDestination,
+  ParsedMovSource,
 };
 
 grammar();
@@ -139,9 +139,9 @@ Instruction: ParsedInstruction<'input> = {
 
 BaseInstruction: ParsedOperands<'input> = {
   "nop" => ParsedOperands::MOV {
-    destination: MovDestination::Y,
+    destination: ParsedMovDestination::Y,
     op: MovOperation::None,
-    source: MovSource::Y,
+    source: ParsedMovSource::Y,
   },
   "jmp" <c:JmpCondition?> ","? <e:Expression> => ParsedOperands::JMP {
     condition: match c {
@@ -178,7 +178,7 @@ BaseInstruction: ParsedOperands<'input> = {
       None => true,
     },
   },
-  "mov" <d:MovDestination> ","? <o:MovOperation?> <s:MovSource> => ParsedOperands::MOV {
+  "mov" <d:ParsedMovDestination> ","? <o:MovOperation?> <s:ParsedMovSource> => ParsedOperands::MOV {
     destination: d,
     op: match o {
       Some(o) => o,
@@ -245,14 +245,14 @@ ShouldBlock: bool = {
   "noblock" => false,
 };
 
-MovDestination: MovDestination = {
-  "pins" => MovDestination::PINS,
-  "x" => MovDestination::X,
-  "y" => MovDestination::Y,
-  "exec" => MovDestination::EXEC,
-  "pc" => MovDestination::PC,
-  "isr" => MovDestination::ISR,
-  "osr" => MovDestination::OSR,
+ParsedMovDestination: ParsedMovDestination = {
+  "pins" => ParsedMovDestination::PINS,
+  "x" => ParsedMovDestination::X,
+  "y" => ParsedMovDestination::Y,
+  "exec" => ParsedMovDestination::EXEC,
+  "pc" => ParsedMovDestination::PC,
+  "isr" => ParsedMovDestination::ISR,
+  "osr" => ParsedMovDestination::OSR,
 };
 
 MovOperation: MovOperation = {
@@ -261,14 +261,14 @@ MovOperation: MovOperation = {
   "::" => MovOperation::BitReverse,
 };
 
-MovSource: MovSource = {
-  "pins" => MovSource::PINS,
-  "x" => MovSource::X,
-  "y" => MovSource::Y,
-  "null" => MovSource::NULL,
-  "status" => MovSource::STATUS,
-  "isr" => MovSource::ISR,
-  "osr" => MovSource::OSR,
+ParsedMovSource: ParsedMovSource = {
+  "pins" => ParsedMovSource::PINS,
+  "x" => ParsedMovSource::X,
+  "y" => ParsedMovSource::Y,
+  "null" => ParsedMovSource::NULL,
+  "status" => ParsedMovSource::STATUS,
+  "isr" => ParsedMovSource::ISR,
+  "osr" => ParsedMovSource::OSR,
 };
 
 IrqModifier: (bool, bool) = {

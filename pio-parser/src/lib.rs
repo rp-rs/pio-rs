@@ -103,16 +103,22 @@ pub(crate) enum ParsedMovDestination {
     PC,
     ISR,
     OSR,
+    #[cfg(feature = "rp2350")]
     RXFIFOY,
+    #[cfg(feature = "rp2350")]
     RXFIFO0,
+    #[cfg(feature = "rp2350")]
     RXFIFO1,
+    #[cfg(feature = "rp2350")]
     RXFIFO2,
+    #[cfg(feature = "rp2350")]
     RXFIFO3,
 }
 
 #[derive(Debug)]
 enum MovDestInternal {
     Mov(MovDestination),
+    #[cfg(feature = "rp2350")]
     Fifo(MovRxIndex),
 }
 
@@ -128,10 +134,15 @@ impl From<ParsedMovDestination> for MovDestInternal {
             ParsedMovDestination::PC => MovDestInternal::Mov(MovDestination::PC),
             ParsedMovDestination::ISR => MovDestInternal::Mov(MovDestination::ISR),
             ParsedMovDestination::OSR => MovDestInternal::Mov(MovDestination::OSR),
+            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFOY => MovDestInternal::Fifo(MovRxIndex::RXFIFOY),
+            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO0 => MovDestInternal::Fifo(MovRxIndex::RXFIFO0),
+            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO1 => MovDestInternal::Fifo(MovRxIndex::RXFIFO1),
+            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO2 => MovDestInternal::Fifo(MovRxIndex::RXFIFO2),
+            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO3 => MovDestInternal::Fifo(MovRxIndex::RXFIFO3),
         }
     }
@@ -146,16 +157,22 @@ pub(crate) enum ParsedMovSource {
     STATUS,
     ISR,
     OSR,
+    #[cfg(feature = "rp2350")]
     RXFIFOY,
+    #[cfg(feature = "rp2350")]
     RXFIFO0,
+    #[cfg(feature = "rp2350")]
     RXFIFO1,
+    #[cfg(feature = "rp2350")]
     RXFIFO2,
+    #[cfg(feature = "rp2350")]
     RXFIFO3,
 }
 
 #[derive(Debug)]
 enum MovSrcInternal {
     Mov(MovSource),
+    #[cfg(feature = "rp2350")]
     Fifo(MovRxIndex),
 }
 
@@ -169,10 +186,15 @@ impl From<ParsedMovSource> for MovSrcInternal {
             ParsedMovSource::STATUS => MovSrcInternal::Mov(MovSource::STATUS),
             ParsedMovSource::ISR => MovSrcInternal::Mov(MovSource::ISR),
             ParsedMovSource::OSR => MovSrcInternal::Mov(MovSource::OSR),
+            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFOY => MovSrcInternal::Fifo(MovRxIndex::RXFIFOY),
+            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO0 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO0),
+            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO1 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO1),
+            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO2 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO2),
+            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO3 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO3),
         }
     }
@@ -268,9 +290,11 @@ impl<'i> ParsedOperands<'i> {
                 let source_internal = (*source).into();
                 let dest_internal = (*destination).into();
                 match (source_internal, dest_internal) {
+                    #[cfg(feature = "rp2350")]
                     (MovSrcInternal::Mov(MovSource::ISR), MovDestInternal::Fifo(index)) => {
                         InstructionOperands::MOVTORX { index }
                     }
+                    #[cfg(feature = "rp2350")]
                     (MovSrcInternal::Fifo(index), MovDestInternal::Mov(MovDestination::OSR)) => {
                         InstructionOperands::MOVFROMRX { index }
                     }
@@ -279,6 +303,7 @@ impl<'i> ParsedOperands<'i> {
                         op: *op,
                         source: s,
                     },
+                    #[cfg(feature = "rp2350")]
                     (d, s) => panic!("Illegal Mov src/dest combination: {:?} {:?}", d, s),
                 }
             }
