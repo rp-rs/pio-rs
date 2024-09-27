@@ -9,7 +9,6 @@ license = "MIT"
 repository = "https://github.com/rp-rs/pio-rs"
 
 [features]
-default = ["rp2350"]
 rp2350 = ["pio/rp2350"]
 
 [dependencies]
