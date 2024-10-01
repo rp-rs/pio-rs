@@ -349,6 +349,9 @@ fn to_codegen(
     )
     .parse()
     .unwrap();
+    let version: proc_macro2::TokenStream = format!("::pio::PioVersion::{:?}", program.version)
+        .parse()
+        .unwrap();
     let defines_struct: proc_macro2::TokenStream = format!(
         "
             struct ExpandedDefines {{
@@ -387,6 +390,7 @@ fn to_codegen(
                     origin: #origin,
                     wrap: #wrap,
                     side_set: #side_set,
+                    version: #version,
                 },
                 public_defines: #defines_init,
             }

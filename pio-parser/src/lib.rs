@@ -4,22 +4,17 @@
 #![allow(clippy::upper_case_acronyms)]
 
 use pio::{
-    InSource, Instruction, InstructionOperands, JmpCondition, MovDestination, MovOperation,
-    MovSource, OutDestination, ProgramWithDefines, SetDestination, WaitSource,
+    InSource, Instruction, InstructionOperands, IrqIndexMode, JmpCondition, MovDestination,
+    MovOperation, MovRxIndex, MovSource, OutDestination, ProgramWithDefines, SetDestination,
+    WaitSource,
 };
-
-#[cfg(feature = "rp2350")]
-use pio::MovRxIndex;
 
 use std::collections::HashMap;
 
 mod parser {
     #![allow(clippy::all)]
     #![allow(unused)]
-    #[cfg(not(feature = "rp2350"))]
-    include!(concat!(env!("OUT_DIR"), "/src/rp2040.rs"));
-    #[cfg(feature = "rp2350")]
-    include!(concat!(env!("OUT_DIR"), "/src/rp2350.rs"));
+    include!(concat!(env!("OUT_DIR"), "/pio.rs"));
 }
 
 #[derive(Debug)]
@@ -97,28 +92,21 @@ pub(crate) enum ParsedMovDestination {
     PINS,
     X,
     Y,
-    #[cfg(feature = "rp2350")]
     PINDIRS,
     EXEC,
     PC,
     ISR,
     OSR,
-    #[cfg(feature = "rp2350")]
     RXFIFOY,
-    #[cfg(feature = "rp2350")]
     RXFIFO0,
-    #[cfg(feature = "rp2350")]
     RXFIFO1,
-    #[cfg(feature = "rp2350")]
     RXFIFO2,
-    #[cfg(feature = "rp2350")]
     RXFIFO3,
 }
 
 #[derive(Debug)]
 enum MovDestInternal {
     Mov(MovDestination),
-    #[cfg(feature = "rp2350")]
     Fifo(MovRxIndex),
 }
 
@@ -128,21 +116,15 @@ impl From<ParsedMovDestination> for MovDestInternal {
             ParsedMovDestination::PINS => MovDestInternal::Mov(MovDestination::PINS),
             ParsedMovDestination::X => MovDestInternal::Mov(MovDestination::X),
             ParsedMovDestination::Y => MovDestInternal::Mov(MovDestination::Y),
-            #[cfg(feature = "rp2350")]
             ParsedMovDestination::PINDIRS => MovDestInternal::Mov(MovDestination::PINDIRS),
             ParsedMovDestination::EXEC => MovDestInternal::Mov(MovDestination::EXEC),
             ParsedMovDestination::PC => MovDestInternal::Mov(MovDestination::PC),
             ParsedMovDestination::ISR => MovDestInternal::Mov(MovDestination::ISR),
             ParsedMovDestination::OSR => MovDestInternal::Mov(MovDestination::OSR),
-            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFOY => MovDestInternal::Fifo(MovRxIndex::RXFIFOY),
-            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO0 => MovDestInternal::Fifo(MovRxIndex::RXFIFO0),
-            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO1 => MovDestInternal::Fifo(MovRxIndex::RXFIFO1),
-            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO2 => MovDestInternal::Fifo(MovRxIndex::RXFIFO2),
-            #[cfg(feature = "rp2350")]
             ParsedMovDestination::RXFIFO3 => MovDestInternal::Fifo(MovRxIndex::RXFIFO3),
         }
     }
@@ -157,22 +139,16 @@ pub(crate) enum ParsedMovSource {
     STATUS,
     ISR,
     OSR,
-    #[cfg(feature = "rp2350")]
     RXFIFOY,
-    #[cfg(feature = "rp2350")]
     RXFIFO0,
-    #[cfg(feature = "rp2350")]
     RXFIFO1,
-    #[cfg(feature = "rp2350")]
     RXFIFO2,
-    #[cfg(feature = "rp2350")]
     RXFIFO3,
 }
 
 #[derive(Debug)]
 enum MovSrcInternal {
     Mov(MovSource),
-    #[cfg(feature = "rp2350")]
     Fifo(MovRxIndex),
 }
 
@@ -186,15 +162,10 @@ impl From<ParsedMovSource> for MovSrcInternal {
             ParsedMovSource::STATUS => MovSrcInternal::Mov(MovSource::STATUS),
             ParsedMovSource::ISR => MovSrcInternal::Mov(MovSource::ISR),
             ParsedMovSource::OSR => MovSrcInternal::Mov(MovSource::OSR),
-            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFOY => MovSrcInternal::Fifo(MovRxIndex::RXFIFOY),
-            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO0 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO0),
-            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO1 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO1),
-            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO2 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO2),
-            #[cfg(feature = "rp2350")]
             ParsedMovSource::RXFIFO3 => MovSrcInternal::Fifo(MovRxIndex::RXFIFO3),
         }
     }
@@ -237,7 +208,7 @@ pub(crate) enum ParsedOperands<'input> {
         clear: bool,
         wait: bool,
         index: Value<'input>,
-        relative: bool,
+        index_mode: IrqIndexMode,
     },
     SET {
         destination: SetDestination,
@@ -290,11 +261,9 @@ impl<'i> ParsedOperands<'i> {
                 let source_internal = (*source).into();
                 let dest_internal = (*destination).into();
                 match (source_internal, dest_internal) {
-                    #[cfg(feature = "rp2350")]
                     (MovSrcInternal::Mov(MovSource::ISR), MovDestInternal::Fifo(index)) => {
                         InstructionOperands::MOVTORX { index }
                     }
-                    #[cfg(feature = "rp2350")]
                     (MovSrcInternal::Fifo(index), MovDestInternal::Mov(MovDestination::OSR)) => {
                         InstructionOperands::MOVFROMRX { index }
                     }
@@ -303,7 +272,6 @@ impl<'i> ParsedOperands<'i> {
                         op: *op,
                         source: s,
                     },
-                    #[cfg(feature = "rp2350")]
                     (d, s) => panic!("Illegal Mov src/dest combination: {:?} {:?}", d, s),
                 }
             }
@@ -311,12 +279,12 @@ impl<'i> ParsedOperands<'i> {
                 clear,
                 wait,
                 index,
-                relative,
+                index_mode,
             } => InstructionOperands::IRQ {
                 clear: *clear,
                 wait: *wait,
                 index: index.reify(state) as u8,
-                relative: *relative,
+                index_mode: *index_mode,
             },
             ParsedOperands::SET { destination, data } => InstructionOperands::SET {
                 destination: *destination,
@@ -557,7 +525,6 @@ fn test() {
 }
 
 #[test]
-#[cfg(feature = "rp2350")]
 fn test_rp2350() {
     let p = Parser::<32>::parse_program(
         "

@@ -8,9 +8,6 @@ license = "MIT"
 repository = "https://github.com/rp-rs/pio-rs"
 description = "proc-macro for assembling PIO code in a Rust program at compile time"
 
-[features]
-rp2350 = ["pio-parser/rp2350"]
-
 [lib]
 proc-macro = true
 
