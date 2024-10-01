@@ -42,13 +42,23 @@ pub use arrayvec::ArrayVec;
 use core::convert::TryFrom;
 use num_enum::TryFromPrimitive;
 
-/// Maximum program size of RP2040 chip, in bytes.
+/// Maximum program size of RP2040 and RP235x chips, in bytes.
 ///
 /// See Chapter 3, Figure 38 for reference of the value.
 pub const RP2040_MAX_PROGRAM_SIZE: usize = 32;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+/// PIO version
+pub enum PioVersion {
+    /// Pio programs compatable with the RP2040
+    V0,
+    /// Pio programs compatable with both the RP2040 and RP235x
+    V1,
+}
+
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum JmpCondition {
     /// Always
     Always = 0b000,
@@ -74,12 +84,11 @@ pub enum WaitSource {
     GPIO = 0b00,
     PIN = 0b01,
     IRQ = 0b10,
-    #[cfg(feature = "rp2350")]
     JMPPIN = 0b11,
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum InSource {
     PINS = 0b000,
     X = 0b001,
@@ -92,7 +101,7 @@ pub enum InSource {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum OutDestination {
     PINS = 0b000,
     X = 0b001,
@@ -105,12 +114,11 @@ pub enum OutDestination {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum MovDestination {
     PINS = 0b000,
     X = 0b001,
     Y = 0b010,
-    #[cfg(feature = "rp2350")]
     PINDIRS = 0b011,
     EXEC = 0b100,
     PC = 0b101,
@@ -119,7 +127,7 @@ pub enum MovDestination {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum MovOperation {
     None = 0b00,
     Invert = 0b01,
@@ -128,7 +136,7 @@ pub enum MovOperation {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum MovSource {
     PINS = 0b000,
     X = 0b001,
@@ -141,8 +149,7 @@ pub enum MovSource {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
-#[cfg(feature = "rp2350")]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum MovRxIndex {
     RXFIFOY = 0b0000,
     RXFIFO0 = 0b1000,
@@ -152,7 +159,7 @@ pub enum MovRxIndex {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
 pub enum SetDestination {
     PINS = 0b000,
     X = 0b001,
@@ -162,6 +169,15 @@ pub enum SetDestination {
     // RESERVED = 0b101,
     // RESERVED = 0b110,
     // RESERVED = 0b111,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive, PartialEq, Eq)]
+pub enum IrqIndexMode {
+    DIRECT = 0b00,
+    PREV = 0b01,
+    REL = 0b10,
+    NEXT = 0b11,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -199,11 +215,9 @@ pub enum InstructionOperands {
         op: MovOperation,
         source: MovSource,
     },
-    #[cfg(feature = "rp2350")]
     MOVTORX {
         index: MovRxIndex,
     },
-    #[cfg(feature = "rp2350")]
     MOVFROMRX {
         index: MovRxIndex,
     },
@@ -211,8 +225,7 @@ pub enum InstructionOperands {
         clear: bool,
         wait: bool,
         index: u8,
-        // TODO: irq index mode, support interrupting next/prev sm
-        relative: bool,
+        index_mode: IrqIndexMode,
     },
     SET {
         destination: SetDestination,
@@ -230,9 +243,7 @@ impl InstructionOperands {
             InstructionOperands::PUSH { .. } => 0b100,
             InstructionOperands::PULL { .. } => 0b100,
             InstructionOperands::MOV { .. } => 0b101,
-            #[cfg(feature = "rp2350")]
             InstructionOperands::MOVTORX { .. } => 0b100,
-            #[cfg(feature = "rp2350")]
             InstructionOperands::MOVFROMRX { .. } => 0b100,
             InstructionOperands::IRQ { .. } => 0b110,
             InstructionOperands::SET { .. } => 0b111,
@@ -285,24 +296,17 @@ impl InstructionOperands {
                 op,
                 source,
             } => (*destination as u8, (*op as u8) << 3 | (*source as u8)),
-            #[cfg(feature = "rp2350")]
             InstructionOperands::MOVTORX { index } => (0, 1 << 4 | *index as u8),
-            #[cfg(feature = "rp2350")]
             InstructionOperands::MOVFROMRX { index } => (0b100, 1 << 4 | *index as u8),
             InstructionOperands::IRQ {
                 clear,
                 wait,
                 index,
-                relative,
-            } => {
-                if *index > 7 {
-                    panic!("invalid interrupt flags");
-                }
-                (
-                    (*clear as u8) << 1 | (*wait as u8),
-                    *index | (if *relative { 0b10000 } else { 0 }),
-                )
-            }
+                index_mode,
+            } => (
+                (*clear as u8) << 1 | (*wait as u8),
+                *index | (*index_mode as u8) << 3,
+            ),
             InstructionOperands::SET { destination, data } => {
                 if *data > 0x1f {
                     panic!("SET argument out of range");
@@ -371,43 +375,23 @@ impl InstructionOperands {
                 let if_flag = p_o0 & 0b0100 != 0;
                 let block = p_o0 & 0b0010 != 0;
 
-                #[cfg(not(feature = "rp2350"))]
-                {
-                    if p_o0 & 0b1001 == 0b1000 {
-                        Some(InstructionOperands::PULL {
-                            if_empty: if_flag,
-                            block,
-                        })
-                    } else if p_o0 & 0b1001 == 0b0000 {
-                        Some(InstructionOperands::PUSH {
-                            if_full: if_flag,
-                            block,
-                        })
-                    } else {
-                        None
-                    }
-                }
-
-                #[cfg(feature = "rp2350")]
-                {
-                    let index = MovRxIndex::try_from((instruction & 0b1111) as u8);
-                    if p_o0 & 0b1001 == 0b1000 {
-                        Some(InstructionOperands::PULL {
-                            if_empty: if_flag,
-                            block,
-                        })
-                    } else if p_o0 & 0b1001 == 0b0000 {
-                        Some(InstructionOperands::PUSH {
-                            if_full: if_flag,
-                            block,
-                        })
-                    } else if p_o0 == 0b1001 {
-                        Some(InstructionOperands::MOVFROMRX { index: index.ok()? })
-                    } else if p_o0 == 0b0001 {
-                        Some(InstructionOperands::MOVTORX { index: index.ok()? })
-                    } else {
-                        None
-                    }
+                let index = MovRxIndex::try_from((instruction & 0b1111) as u8);
+                if p_o0 & 0b1001 == 0b1000 {
+                    Some(InstructionOperands::PULL {
+                        if_empty: if_flag,
+                        block,
+                    })
+                } else if p_o0 & 0b1001 == 0b0000 {
+                    Some(InstructionOperands::PUSH {
+                        if_full: if_flag,
+                        block,
+                    })
+                } else if p_o0 == 0b1001 {
+                    Some(InstructionOperands::MOVFROMRX { index: index.ok()? })
+                } else if p_o0 == 0b0001 {
+                    Some(InstructionOperands::MOVTORX { index: index.ok()? })
+                } else {
+                    None
                 }
             }
             0b101 => match (
@@ -424,11 +408,12 @@ impl InstructionOperands {
             },
             0b110 => {
                 if o0 & 0b100 == 0 {
+                    let index_mode = IrqIndexMode::try_from((o1 >> 3) & 0b11);
                     Some(InstructionOperands::IRQ {
                         clear: o0 & 0b010 != 0,
                         wait: o0 & 0b001 != 0,
-                        index: o1 & 0b01111,
-                        relative: o1 & 0b10000 != 0,
+                        index: o1 & 0b00111,
+                        index_mode: index_mode.ok()?,
                     })
                 } else {
                     None
@@ -618,6 +603,35 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
             .collect()
     }
 
+    /// Check the program for instructions and operands available only on the RP2350.
+    pub fn version(&self) -> PioVersion {
+        for instr in &self.instructions {
+            let opr = instr.operands;
+            match opr {
+                InstructionOperands::MOVFROMRX { .. } => return PioVersion::V1,
+                InstructionOperands::MOVTORX { .. } => return PioVersion::V1,
+                InstructionOperands::MOV { destination, .. } => {
+                    if destination == MovDestination::PINDIRS {
+                        return PioVersion::V1;
+                    }
+                }
+                InstructionOperands::WAIT { source, .. } => {
+                    if source == WaitSource::JMPPIN {
+                        return PioVersion::V1;
+                    }
+                }
+                InstructionOperands::IRQ { index_mode, .. } => {
+                    if index_mode == IrqIndexMode::PREV || index_mode == IrqIndexMode::NEXT {
+                        return PioVersion::V1;
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        PioVersion::V0
+    }
+
     /// Assemble the program into [`Program`].
     ///
     /// The program contains the instructions and side-set info set. You can directly compile into a program with
@@ -625,6 +639,7 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
     /// [`Program::set_wrap`].
     pub fn assemble_program(self) -> Program<PROGRAM_SIZE> {
         let side_set = self.side_set;
+        let version = self.version();
         let code = self.assemble();
         let wrap = Wrap {
             source: (code.len() - 1) as u8,
@@ -636,6 +651,7 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
             origin: None,
             side_set,
             wrap,
+            version,
         }
     }
 
@@ -802,7 +818,6 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
         }
     );
 
-    #[cfg(feature = "rp2350")]
     instr!(
         /// Emit a `mov to rx` instruction.
         mov_to_rx(self, index: MovRxIndex) {
@@ -812,7 +827,6 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
         }
     );
 
-    #[cfg(feature = "rp2350")]
     instr!(
         /// Emit a `mov from rx` instruction.
         mov_from_rx(self, index: MovRxIndex) {
@@ -824,12 +838,12 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
 
     instr!(
         /// Emit an `irq` instruction using `clear` and `wait` with `index` which may be `relative`.
-        irq(self, clear: bool, wait: bool, index: u8, relative: bool) {
+        irq(self, clear: bool, wait: bool, index: u8, index_mode: IrqIndexMode) {
             InstructionOperands::IRQ {
                 clear,
                 wait,
                 index,
-                relative,
+                index_mode
             }
         }
     );
@@ -891,6 +905,8 @@ pub struct Program<const PROGRAM_SIZE: usize> {
     pub wrap: Wrap,
     /// Side-set info for this program.
     pub side_set: SideSet,
+    /// Pio Version required for this program.
+    pub version: PioVersion,
 }
 
 impl<const PROGRAM_SIZE: usize> Program<PROGRAM_SIZE> {
@@ -1005,7 +1021,7 @@ fn test_assemble_program_default_wrap() {
 }
 
 macro_rules! instr_test {
-    ($name:ident ( $( $v:expr ),* ) , $expected:expr, $side_set:expr) => {
+    ($name:ident ( $( $v:expr ),* ) , $expected:expr, $side_set:expr, $version:expr) => {
         paste::paste! {
             #[test]
             fn [< test _ $name _ $expected >]() {
@@ -1015,6 +1031,9 @@ macro_rules! instr_test {
                 a.$name(
                     $( $v ),*
                 );
+
+                assert_eq!(a.version(), $version);
+
                 let instr = a.assemble()[0];
                 if instr != expected {
                     panic!("assertion failure: (left == right)\nleft:  {:#016b}\nright: {:#016b}", instr, expected);
@@ -1029,24 +1048,42 @@ macro_rules! instr_test {
         }
     };
 
-    ($name:ident ( $( $v:expr ),* ) , $b:expr) => {
-        instr_test!( $name ( $( $v ),* ), $b, SideSet::new(false, 0, false) );
+    ($name:ident ( $( $v:expr ),* ) , $b:expr, $version:expr) => {
+        instr_test!( $name ( $( $v ),* ), $b, SideSet::new(false, 0, false), $version);
     };
 }
 
-instr_test!(wait(0, WaitSource::IRQ, 2, false), 0b001_00000_010_00010);
-instr_test!(wait(1, WaitSource::IRQ, 7, false), 0b001_00000_110_00111);
-instr_test!(wait(1, WaitSource::GPIO, 16, false), 0b001_00000_100_10000);
+instr_test!(
+    wait(0, WaitSource::IRQ, 2, false),
+    0b001_00000_010_00010,
+    PioVersion::V0
+);
+instr_test!(
+    wait(1, WaitSource::IRQ, 7, false),
+    0b001_00000_110_00111,
+    PioVersion::V0
+);
+instr_test!(
+    wait(1, WaitSource::GPIO, 16, false),
+    0b001_00000_100_10000,
+    PioVersion::V0
+);
 instr_test!(
     wait_with_delay(0, WaitSource::IRQ, 2, false, 30),
-    0b001_11110_010_00010
+    0b001_11110_010_00010,
+    PioVersion::V0
 );
 instr_test!(
     wait_with_side_set(0, WaitSource::IRQ, 2, false, 0b10101),
     0b001_10101_010_00010,
-    SideSet::new(false, 5, false)
+    SideSet::new(false, 5, false),
+    PioVersion::V0
 );
-instr_test!(wait(0, WaitSource::IRQ, 2, true), 0b001_00000_010_10010);
+instr_test!(
+    wait(0, WaitSource::IRQ, 2, true),
+    0b001_00000_010_10010,
+    PioVersion::V0
+);
 
 #[test]
 #[should_panic]
@@ -1056,11 +1093,19 @@ fn test_wait_relative_not_used_on_irq() {
     a.assemble_program();
 }
 
-instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010);
-instr_test!(r#in(InSource::Y, 32), 0b010_00000_010_00000);
+instr_test!(r#in(InSource::Y, 10), 0b010_00000_010_01010, PioVersion::V0);
+instr_test!(r#in(InSource::Y, 32), 0b010_00000_010_00000, PioVersion::V0);
 
-instr_test!(out(OutDestination::Y, 10), 0b011_00000_010_01010);
-instr_test!(out(OutDestination::Y, 32), 0b011_00000_010_00000);
+instr_test!(
+    out(OutDestination::Y, 10),
+    0b011_00000_010_01010,
+    PioVersion::V0
+);
+instr_test!(
+    out(OutDestination::Y, 32),
+    0b011_00000_010_00000,
+    PioVersion::V0
+);
 
 #[test]
 #[should_panic(expected = "bit_count must be from 1 to 32")]
@@ -1094,11 +1139,11 @@ fn test_out_bit_width_exceeds_max_should_panic() {
     a.assemble_program();
 }
 
-instr_test!(push(true, false), 0b100_00000_010_00000);
-instr_test!(push(false, true), 0b100_00000_001_00000);
+instr_test!(push(true, false), 0b100_00000_010_00000, PioVersion::V0);
+instr_test!(push(false, true), 0b100_00000_001_00000, PioVersion::V0);
 
-instr_test!(pull(true, false), 0b100_00000_110_00000);
-instr_test!(pull(false, true), 0b100_00000_101_00000);
+instr_test!(pull(true, false), 0b100_00000_110_00000, PioVersion::V0);
+instr_test!(pull(false, true), 0b100_00000_101_00000, PioVersion::V0);
 
 instr_test!(
     mov(
@@ -1106,25 +1151,70 @@ instr_test!(
         MovOperation::BitReverse,
         MovSource::STATUS
     ),
-    0b101_00000_010_10101
+    0b101_00000_010_10101,
+    PioVersion::V0
 );
 
-instr_test!(irq(true, false, 0b11, false), 0b110_00000_010_00011);
-instr_test!(irq(false, true, 0b111, true), 0b110_00000_001_10111);
+instr_test!(
+    irq(true, false, 0b11, IrqIndexMode::DIRECT),
+    0b110_00000_010_00_011,
+    PioVersion::V0
+);
+instr_test!(
+    irq(false, true, 0b111, IrqIndexMode::REL),
+    0b110_00000_001_10_111,
+    PioVersion::V0
+);
+instr_test!(
+    irq(true, false, 0b1, IrqIndexMode::PREV),
+    0b110_00000_010_01_001,
+    PioVersion::V1
+);
+instr_test!(
+    irq(false, true, 0b101, IrqIndexMode::NEXT),
+    0b110_00000_001_11_101,
+    PioVersion::V1
+);
 
-instr_test!(set(SetDestination::Y, 10), 0b111_00000_010_01010);
+instr_test!(
+    set(SetDestination::Y, 10),
+    0b111_00000_010_01010,
+    PioVersion::V0
+);
 
-#[cfg(feature = "rp2350")]
-#[cfg(test)]
-mod rp2350_test {
-    use super::*;
+instr_test!(
+    mov(MovDestination::PINDIRS, MovOperation::None, MovSource::X),
+    0b101_00000_0110_0001,
+    PioVersion::V1
+);
 
-    instr_test!(mov_to_rx(MovRxIndex::RXFIFO3), 0b100_00000_0001_1011);
-    instr_test!(mov_to_rx(MovRxIndex::RXFIFOY), 0b100_00000_0001_0000);
+instr_test!(
+    wait(0, WaitSource::JMPPIN, 0, false),
+    0b001_00000_0110_0000,
+    PioVersion::V1
+);
 
-    instr_test!(mov_from_rx(MovRxIndex::RXFIFO3), 0b100_00000_1001_1011);
-    instr_test!(mov_from_rx(MovRxIndex::RXFIFOY), 0b100_00000_1001_0000);
-}
+instr_test!(
+    mov_to_rx(MovRxIndex::RXFIFO3),
+    0b100_00000_0001_1011,
+    PioVersion::V1
+);
+instr_test!(
+    mov_to_rx(MovRxIndex::RXFIFOY),
+    0b100_00000_0001_0000,
+    PioVersion::V1
+);
+
+instr_test!(
+    mov_from_rx(MovRxIndex::RXFIFO3),
+    0b100_00000_1001_1011,
+    PioVersion::V1
+);
+instr_test!(
+    mov_from_rx(MovRxIndex::RXFIFOY),
+    0b100_00000_1001_0000,
+    PioVersion::V1
+);
 
 /// This block ensures that README.md is checked when `cargo test` is run.
 #[cfg(doctest)]
