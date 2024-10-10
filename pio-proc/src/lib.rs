@@ -1,7 +1,7 @@
 use lalrpop_util::ParseError;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use proc_macro_error::{abort, abort_call_site, proc_macro_error};
+use proc_macro_error2::{abort, abort_call_site, proc_macro_error};
 use quote::quote;
 use std::collections::HashMap;
 use std::fmt::Write;
