@@ -51,9 +51,9 @@ pub const RP2040_MAX_PROGRAM_SIZE: usize = 32;
 #[non_exhaustive]
 /// PIO version
 pub enum PioVersion {
-    /// Pio programs compatable with the RP2040
+    /// Pio programs compatible with both the RP2040 and RP235x
     V0,
-    /// Pio programs compatable with both the RP2040 and RP235x
+    /// Pio programs compatible with the RP235x
     V1,
 }
 
