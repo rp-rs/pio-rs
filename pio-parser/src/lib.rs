@@ -261,12 +261,13 @@ impl<'i> ParsedOperands<'i> {
                 let source_internal = (*source).into();
                 let dest_internal = (*destination).into();
                 match (source_internal, dest_internal) {
-                    (MovSrcInternal::Mov(MovSource::ISR), MovDestInternal::Fifo(index)) => {
-                        InstructionOperands::MOVTORX { index }
+                    (MovSrcInternal::Mov(MovSource::ISR), MovDestInternal::Fifo(fifo_index)) => {
+                        InstructionOperands::MOVTORX { fifo_index }
                     }
-                    (MovSrcInternal::Fifo(index), MovDestInternal::Mov(MovDestination::OSR)) => {
-                        InstructionOperands::MOVFROMRX { index }
-                    }
+                    (
+                        MovSrcInternal::Fifo(fifo_index),
+                        MovDestInternal::Mov(MovDestination::OSR),
+                    ) => InstructionOperands::MOVFROMRX { fifo_index },
                     (MovSrcInternal::Mov(s), MovDestInternal::Mov(d)) => InstructionOperands::MOV {
                         destination: d,
                         op: *op,

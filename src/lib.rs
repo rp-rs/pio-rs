@@ -216,10 +216,10 @@ pub enum InstructionOperands {
         source: MovSource,
     },
     MOVTORX {
-        index: MovRxIndex,
+        fifo_index: MovRxIndex,
     },
     MOVFROMRX {
-        index: MovRxIndex,
+        fifo_index: MovRxIndex,
     },
     IRQ {
         clear: bool,
@@ -296,17 +296,22 @@ impl InstructionOperands {
                 op,
                 source,
             } => (*destination as u8, (*op as u8) << 3 | (*source as u8)),
-            InstructionOperands::MOVTORX { index } => (0, 1 << 4 | *index as u8),
-            InstructionOperands::MOVFROMRX { index } => (0b100, 1 << 4 | *index as u8),
+            InstructionOperands::MOVTORX { fifo_index } => (0, 1 << 4 | *fifo_index as u8),
+            InstructionOperands::MOVFROMRX { fifo_index } => (0b100, 1 << 4 | *fifo_index as u8),
             InstructionOperands::IRQ {
                 clear,
                 wait,
                 index,
                 index_mode,
-            } => (
-                (*clear as u8) << 1 | (*wait as u8),
-                *index | (*index_mode as u8) << 3,
-            ),
+            } => {
+                if *index > 7 {
+                    panic!("invalid interrupt flags");
+                }
+                (
+                    (*clear as u8) << 1 | (*wait as u8),
+                    *index | (*index_mode as u8) << 3,
+                )
+            }
             InstructionOperands::SET { destination, data } => {
                 if *data > 0x1f {
                     panic!("SET argument out of range");
@@ -387,9 +392,13 @@ impl InstructionOperands {
                         block,
                     })
                 } else if p_o0 == 0b1001 {
-                    Some(InstructionOperands::MOVFROMRX { index: index.ok()? })
+                    Some(InstructionOperands::MOVFROMRX {
+                        fifo_index: index.ok()?,
+                    })
                 } else if p_o0 == 0b0001 {
-                    Some(InstructionOperands::MOVTORX { index: index.ok()? })
+                    Some(InstructionOperands::MOVTORX {
+                        fifo_index: index.ok()?,
+                    })
                 } else {
                     None
                 }
@@ -820,18 +829,18 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
 
     instr!(
         /// Emit a `mov to rx` instruction.
-        mov_to_rx(self, index: MovRxIndex) {
+        mov_to_rx(self, fifo_index: MovRxIndex) {
             InstructionOperands::MOVTORX {
-                index
+                fifo_index
             }
         }
     );
 
     instr!(
         /// Emit a `mov from rx` instruction.
-        mov_from_rx(self, index: MovRxIndex) {
+        mov_from_rx(self, fifo_index: MovRxIndex) {
             InstructionOperands::MOVFROMRX {
-                index
+                fifo_index
             }
         }
     );
