@@ -29,7 +29,7 @@ pub(crate) enum Value<'input> {
     Rev(Box<Value<'input>>),
 }
 
-impl<'i> Value<'i> {
+impl Value<'_> {
     fn reify(&self, state: &ProgramState) -> i32 {
         match self {
             Value::I32(v) => *v,
@@ -77,7 +77,7 @@ pub(crate) struct ParsedInstruction<'input> {
     delay: Value<'input>,
 }
 
-impl<'i> ParsedInstruction<'i> {
+impl ParsedInstruction<'_> {
     fn reify(&self, state: &ProgramState) -> Instruction {
         Instruction {
             operands: self.operands.reify(state),
@@ -216,7 +216,7 @@ pub(crate) enum ParsedOperands<'input> {
     },
 }
 
-impl<'i> ParsedOperands<'i> {
+impl ParsedOperands<'_> {
     fn reify(&self, state: &ProgramState) -> InstructionOperands {
         match self {
             ParsedOperands::JMP { condition, address } => InstructionOperands::JMP {
