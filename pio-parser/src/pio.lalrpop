@@ -10,6 +10,7 @@ use ::pio::{
   MovOperation,
   MovSource,
   SetDestination,
+  IrqIndexMode,
 };
 use crate::{
   Line,
@@ -17,6 +18,8 @@ use crate::{
   ParsedDirective,
   ParsedInstruction,
   ParsedOperands,
+  ParsedMovSource,
+  ParsedMovDestination,
 };
 
 grammar();
@@ -139,9 +142,9 @@ Instruction: ParsedInstruction<'input> = {
 
 BaseInstruction: ParsedOperands<'input> = {
   "nop" => ParsedOperands::MOV {
-    destination: MovDestination::Y,
+    destination: ParsedMovDestination::Y,
     op: MovOperation::None,
-    source: MovSource::Y,
+    source: ParsedMovSource::Y,
   },
   "jmp" <c:JmpCondition?> ","? <e:Expression> => ParsedOperands::JMP {
     condition: match c {
@@ -178,7 +181,7 @@ BaseInstruction: ParsedOperands<'input> = {
       None => true,
     },
   },
-  "mov" <d:MovDestination> ","? <o:MovOperation?> <s:MovSource> => ParsedOperands::MOV {
+  "mov" <d:ParsedMovDestination> ","? <o:MovOperation?> <s:ParsedMovSource> => ParsedOperands::MOV {
     destination: d,
     op: match o {
       Some(o) => o,
@@ -186,7 +189,7 @@ BaseInstruction: ParsedOperands<'input> = {
     },
     source: s,
   },
-  "irq" <m:IrqModifier?> <v:Value> <r:"rel"?> => ParsedOperands::IRQ {
+  "irq" <m:IrqModifier?> <v:Value> <r:IrqIndexMode?> => ParsedOperands::IRQ {
     clear: match m {
       Some(m) => m.0,
       None => false,
@@ -196,7 +199,10 @@ BaseInstruction: ParsedOperands<'input> = {
       None => false,
     },
     index: v,
-    relative: r.is_some(),
+    index_mode: match r {
+      Some(m) => m,
+      None => IrqIndexMode::DIRECT
+    }
   },
   "set" <d:SetDestination> ","? <v:Value> => ParsedOperands::SET {
     destination: d,
@@ -245,14 +251,20 @@ ShouldBlock: bool = {
   "noblock" => false,
 };
 
-MovDestination: MovDestination = {
-  "pins" => MovDestination::PINS,
-  "x" => MovDestination::X,
-  "y" => MovDestination::Y,
-  "exec" => MovDestination::EXEC,
-  "pc" => MovDestination::PC,
-  "isr" => MovDestination::ISR,
-  "osr" => MovDestination::OSR,
+ParsedMovDestination: ParsedMovDestination = {
+  "pins" => ParsedMovDestination::PINS,
+  "x" => ParsedMovDestination::X,
+  "y" => ParsedMovDestination::Y,
+  "pindirs" => ParsedMovDestination::PINDIRS,
+  "exec" => ParsedMovDestination::EXEC,
+  "pc" => ParsedMovDestination::PC,
+  "isr" => ParsedMovDestination::ISR,
+  "osr" => ParsedMovDestination::OSR,
+  "rxfifo[y]" => ParsedMovDestination::RXFIFOY,
+  "rxfifo[0]" => ParsedMovDestination::RXFIFO0,
+  "rxfifo[1]" => ParsedMovDestination::RXFIFO1,
+  "rxfifo[2]" => ParsedMovDestination::RXFIFO2,
+  "rxfifo[3]" => ParsedMovDestination::RXFIFO3,
 };
 
 MovOperation: MovOperation = {
@@ -261,14 +273,19 @@ MovOperation: MovOperation = {
   "::" => MovOperation::BitReverse,
 };
 
-MovSource: MovSource = {
-  "pins" => MovSource::PINS,
-  "x" => MovSource::X,
-  "y" => MovSource::Y,
-  "null" => MovSource::NULL,
-  "status" => MovSource::STATUS,
-  "isr" => MovSource::ISR,
-  "osr" => MovSource::OSR,
+ParsedMovSource: ParsedMovSource = {
+  "pins" => ParsedMovSource::PINS,
+  "x" => ParsedMovSource::X,
+  "y" => ParsedMovSource::Y,
+  "null" => ParsedMovSource::NULL,
+  "status" => ParsedMovSource::STATUS,
+  "isr" => ParsedMovSource::ISR,
+  "osr" => ParsedMovSource::OSR,
+  "rxfifo[y]" => ParsedMovSource::RXFIFOY,
+  "rxfifo[0]" => ParsedMovSource::RXFIFO0,
+  "rxfifo[1]" => ParsedMovSource::RXFIFO1,
+  "rxfifo[2]" => ParsedMovSource::RXFIFO2,
+  "rxfifo[3]" => ParsedMovSource::RXFIFO3,
 };
 
 IrqModifier: (bool, bool) = {
@@ -277,6 +294,12 @@ IrqModifier: (bool, bool) = {
   "wait" => (false, true),
   "clear" => (true, false),
 };
+
+IrqIndexMode: IrqIndexMode = {
+  "prev" => IrqIndexMode::PREV,
+  "rel" => IrqIndexMode::REL,
+  "next" => IrqIndexMode::NEXT,
+}
 
 SetDestination: SetDestination = {
   "pins" => SetDestination::PINS,
