@@ -338,64 +338,53 @@ fn to_codegen(
         }
     }
 
-    let origin: proc_macro2::TokenStream = format!("{:?}", program.origin).parse().unwrap();
+    let origin = if let Some(origin) = program.origin {
+        quote!(Some(#origin))
+    } else {
+        quote!(None)
+    };
 
-    let code: proc_macro2::TokenStream = format!(
-        "::core::iter::IntoIterator::into_iter([{}]).collect()",
-        program
-            .code
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<String>>()
-            .join(",")
-    )
-    .parse()
-    .unwrap();
-    let wrap: proc_macro2::TokenStream = format!(
-        "::pio::Wrap {{source: {}, target: {}}}",
-        program.wrap.source, program.wrap.target
-    )
-    .parse()
-    .unwrap();
-    let side_set: proc_macro2::TokenStream = format!(
-        "::pio::SideSet::new_from_proc_macro({}, {}, {})",
-        program.side_set.optional(),
-        program.side_set.bits(),
-        program.side_set.pindirs()
-    )
-    .parse()
-    .unwrap();
-    let version: proc_macro2::TokenStream = format!("::pio::PioVersion::{:?}", program.version)
-        .parse()
-        .unwrap();
-    let defines_struct: proc_macro2::TokenStream = format!(
-        "
-            struct ExpandedDefines {{
-                {}
-            }}
-            ",
-        public_defines
-            .keys()
-            .map(|k| format!("{}: i32,", k))
-            .collect::<Vec<String>>()
-            .join("\n")
-    )
-    .parse()
-    .unwrap();
-    let defines_init: proc_macro2::TokenStream = format!(
-        "
-            ExpandedDefines {{
-                {}
-            }}
-            ",
-        public_defines
-            .iter()
-            .map(|(k, v)| format!("{}: {},", k, v))
-            .collect::<Vec<String>>()
-            .join("\n")
-    )
-    .parse()
-    .unwrap();
+    let code = &program.code;
+    let code = quote!(
+        ::core::iter::IntoIterator::into_iter([#(#code),*]).collect()
+    );
+
+    let wrap_source = program.wrap.source;
+    let wrap_target = program.wrap.target;
+    let wrap = quote!(
+        ::pio::Wrap {source: #wrap_source, target: #wrap_target}
+    );
+
+    let side_set_optional = program.side_set.optional();
+    let side_set_bits = program.side_set.bits();
+    let side_set_pindirs = program.side_set.pindirs();
+    let side_set = quote!(
+        ::pio::SideSet::new_from_proc_macro(
+            #side_set_optional,
+            #side_set_bits,
+            #side_set_pindirs,
+        )
+    );
+
+    let version = Ident::new(&format!("{:?}", program.version), Span::call_site());
+    let version = quote!(::pio::PioVersion::#version);
+
+    let defines_fields = public_defines
+        .keys()
+        .map(|k| Ident::new(k, Span::call_site()))
+        .collect::<Vec<_>>();
+    let defines_values = public_defines.values();
+    let defines_struct = quote!(
+        struct ExpandedDefines {
+            #(#defines_fields: i32,)*
+        }
+    );
+    let defines_init = quote!(
+        ExpandedDefines {
+            #(#defines_fields: #defines_values,)*
+        }
+    );
+
     let program_size = max_program_size;
 
     // This makes sure the file is added to the list
