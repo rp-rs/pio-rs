@@ -314,11 +314,11 @@ pub fn pio_asm(item: TokenStream) -> TokenStream {
 }
 
 fn to_codegen(
-    program: &pio::ProgramWithDefines<HashMap<String, i32>, { MAX_PROGRAM_SIZE }>,
+    program: &pio_core::ProgramWithDefines<HashMap<String, i32>, { MAX_PROGRAM_SIZE }>,
     max_program_size: Expr,
     file: Option<String>,
 ) -> proc_macro2::TokenStream {
-    let pio::ProgramWithDefines {
+    let pio_core::ProgramWithDefines {
         program,
         public_defines,
     } = program;

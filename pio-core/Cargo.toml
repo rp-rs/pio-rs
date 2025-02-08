@@ -1,0 +1,9 @@
+[package]
+name = "pio-core"
+version = "0.2.2"
+edition = "2021"
+
+[dependencies]
+arrayvec = { version = "0.7", default-features = false }
+paste = "1.0"
+num_enum = { version = "0.7", default-features = false }
