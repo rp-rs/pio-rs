@@ -13,9 +13,9 @@ members = ["pio-proc", "pio-parser", "pio-core"]
 
 [dependencies]
 pio-core = { path = "./pio-core" }
+pio-proc = { path = "./pio-proc" }
 
 [dev-dependencies]
 test-generator = "0.3.0"
 pretty_assertions = "1.4"
-pio-proc = { path = "./pio-proc" }
 pio-parser = { path = "./pio-parser" }

@@ -53,9 +53,7 @@ pio = "0.2"
 Your Rust program should contain your PIO program, as follows with PIO asm directly in the file:
 
 ```rust
-use pio_proc::pio_asm;
-
-let program_with_defines = pio_proc::pio_asm!(
+let program_with_defines = pio::pio_asm!(
     "set pindirs, 1",
     ".wrap_target",
     "set pins, 0 [31]",
@@ -69,9 +67,7 @@ let program = program_with_defines.program;
 Or you can assemble a stand-alone PIO file from disk:
 
 ```rust
-use pio_proc::pio_file;
-
-let program_with_defines = pio_proc::pio_file!(
+let program_with_defines = pio::pio_file!(
     "./tests/test.pio",
     select_program("test"), // Optional if only one program in the file
     options(max_program_size = 32) // Optional, defaults to 32

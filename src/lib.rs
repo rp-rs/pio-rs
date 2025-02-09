@@ -33,4 +33,26 @@
 //! let program = a.assemble_with_wrap(wrap_source, wrap_target);
 //! ```
 
+#![no_std]
+
 pub use pio_core::*;
+
+/// Not covered by semver guarantees
+#[doc(hidden)]
+pub mod _export {
+    pub use pio_proc::*;
+}
+
+#[macro_export]
+macro_rules! pio_asm {
+    ($($t:tt)*) => {
+        $crate::_export::pio_asm_inner!($crate, $($t)*)
+    };
+}
+
+#[macro_export]
+macro_rules! pio_file {
+    ($($t:tt)*) => {
+        $crate::_export::pio_file_inner!($crate, $($t)*)
+    };
+}

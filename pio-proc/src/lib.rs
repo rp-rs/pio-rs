@@ -118,6 +118,7 @@ impl syn::parse::Parse for SelectProgram {
 }
 
 struct PioFileMacroArgs {
+    krate: Ident,
     max_program_size: Expr,
     program: String,
     program_name: Option<(String, LitStr)>,
@@ -126,6 +127,9 @@ struct PioFileMacroArgs {
 
 impl syn::parse::Parse for PioFileMacroArgs {
     fn parse(stream: syn::parse::ParseStream) -> syn::parse::Result<Self> {
+        let krate: Ident = stream.parse()?;
+        let _comma: Option<Token![,]> = stream.parse()?;
+
         let mut program = String::new();
         let mut file_path = PathBuf::new();
 
@@ -204,6 +208,7 @@ impl syn::parse::Parse for PioFileMacroArgs {
         let max_program_size = options.get_max_program_size_or_default()?;
 
         Ok(Self {
+            krate,
             program_name: select_program.map(|v| (v.name, v.ident)),
             max_program_size,
             program,
@@ -213,12 +218,16 @@ impl syn::parse::Parse for PioFileMacroArgs {
 }
 
 struct PioAsmMacroArgs {
+    krate: Ident,
     max_program_size: Expr,
     program: String,
 }
 
 impl syn::parse::Parse for PioAsmMacroArgs {
     fn parse(stream: syn::parse::ParseStream) -> syn::parse::Result<Self> {
+        let krate: Ident = stream.parse()?;
+        let _comma: Option<Token![,]> = stream.parse()?;
+
         let mut program = String::new();
 
         // Parse the list of instructions
@@ -250,6 +259,7 @@ impl syn::parse::Parse for PioAsmMacroArgs {
         let max_program_size = options.get_max_program_size_or_default()?;
 
         Ok(Self {
+            krate,
             max_program_size,
             program,
         })
@@ -258,7 +268,7 @@ impl syn::parse::Parse for PioAsmMacroArgs {
 
 #[proc_macro]
 #[proc_macro_error]
-pub fn pio_file(item: TokenStream) -> TokenStream {
+pub fn pio_file_inner(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioFileMacroArgs);
     let parsed_programs = pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_file(&args.program);
     let program = match &parsed_programs {
@@ -285,6 +295,7 @@ pub fn pio_file(item: TokenStream) -> TokenStream {
     };
 
     to_codegen(
+        args.krate,
         program,
         args.max_program_size,
         Some(
@@ -300,7 +311,7 @@ pub fn pio_file(item: TokenStream) -> TokenStream {
 /// A macro which invokes the PIO assembler at compile time.
 #[proc_macro]
 #[proc_macro_error]
-pub fn pio_asm(item: TokenStream) -> TokenStream {
+pub fn pio_asm_inner(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioAsmMacroArgs);
 
     let parsed_program = pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_program(&args.program);
@@ -310,10 +321,11 @@ pub fn pio_asm(item: TokenStream) -> TokenStream {
         Err(e) => return parse_error(e, &args.program).into(),
     };
 
-    to_codegen(program, args.max_program_size, None).into()
+    to_codegen(args.krate, program, args.max_program_size, None).into()
 }
 
 fn to_codegen(
+    krate: Ident,
     program: &pio_core::ProgramWithDefines<HashMap<String, i32>, { MAX_PROGRAM_SIZE }>,
     max_program_size: Expr,
     file: Option<String>,
@@ -352,14 +364,14 @@ fn to_codegen(
     let wrap_source = program.wrap.source;
     let wrap_target = program.wrap.target;
     let wrap = quote!(
-        ::pio::Wrap {source: #wrap_source, target: #wrap_target}
+        #krate::Wrap {source: #wrap_source, target: #wrap_target}
     );
 
     let side_set_optional = program.side_set.optional();
     let side_set_bits = program.side_set.bits();
     let side_set_pindirs = program.side_set.pindirs();
     let side_set = quote!(
-        ::pio::SideSet::new_from_proc_macro(
+        #krate::SideSet::new_from_proc_macro(
             #side_set_optional,
             #side_set_bits,
             #side_set_pindirs,
@@ -367,7 +379,7 @@ fn to_codegen(
     );
 
     let version = Ident::new(&format!("{:?}", program.version), Span::call_site());
-    let version = quote!(::pio::PioVersion::#version);
+    let version = quote!(#krate::PioVersion::#version);
 
     let defines_fields = public_defines
         .keys()
@@ -400,8 +412,8 @@ fn to_codegen(
             #defines_struct
             {
                 #dummy_include;
-                ::pio::ProgramWithDefines {
-                    program: ::pio::Program::<{ #program_size }> {
+                #krate::ProgramWithDefines {
+                    program: #krate::Program::<{ #program_size }> {
                         code: #code,
                         origin: #origin,
                         wrap: #wrap,
