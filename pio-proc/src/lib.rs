@@ -287,7 +287,12 @@ pub fn pio_file(item: TokenStream) -> TokenStream {
     to_codegen(
         program,
         args.max_program_size,
-        Some(args.file_path.into_os_string().into_string().expect("file path must be valid UTF-8")),
+        Some(
+            args.file_path
+                .into_os_string()
+                .into_string()
+                .expect("file path must be valid UTF-8"),
+        ),
     )
     .into()
 }
