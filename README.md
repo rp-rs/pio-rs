@@ -25,8 +25,9 @@ benefits are:
 
 * It's easier to integrate into an Embedded Rust program for the RP2040 than
   `pioasm`
-* The compiler itself can be included in your Embedded Rust program, so you can
-  compile PIO code on the RP2040, at run-time!
+* It provides a `pio_asm!` macro that can assemble PIO at compile-time.
+* The compiler itself can be included in your Embedded Rust program as a library,
+  so you can compile PIO code on the RP2040, at run-time!
 * Writing an assembler was a good way to test our understanding of the
   specification.
 * It's written in Rust :)
@@ -46,7 +47,6 @@ Your `Cargo.toml` file should include:
 
 ```toml
 [dependencies]
-pio-proc = "0.2"
 pio = "0.2"
 ```
 

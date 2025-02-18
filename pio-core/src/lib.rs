@@ -1,5 +1,5 @@
 //! This crate is an implementation detail, you must not use it directly.
-//! Use the `pio` crate instead.
+//! Use the [`pio`](https://crates.io/crates/pio) crate instead.
 
 #![no_std]
 // PIO instr grouping is 3/5/3/5
