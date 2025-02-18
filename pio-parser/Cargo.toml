@@ -2,7 +2,7 @@
 name = "pio-parser"
 version = "0.2.2"
 authors = ["snek", "The rp-rs Developers"]
-edition = "2018"
+edition = "2021"
 resolver = "2"
 description = "Raspberry Silicon PIO asm parser"
 license = "MIT"
