@@ -1,6 +1,6 @@
 [package]
 name = "pio-proc"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["snek", "The rp-rs Developers"]
 edition = "2021"
 resolver = "2"
@@ -17,6 +17,6 @@ proc-macro-error2 = "2.0"
 syn = "2.0"
 quote = "1.0"
 codespan-reporting = "0.11"
-pio-core = { path = "../pio-core", version = "0.2.0" }
-pio-parser = { path = "../pio-parser", version = "0.2.0" }
+pio-core = { path = "../pio-core", version = "0.3.0" }
+pio-parser = { path = "../pio-parser", version = "0.3.0" }
 lalrpop-util = "0.22.0"
