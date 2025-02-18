@@ -2,7 +2,7 @@
 name = "pio"
 version = "0.2.1"
 authors = ["snek", "The rp-rs developers"]
-edition = "2018"
+edition = "2021"
 resolver = "2"
 license = "MIT"
 description = "Support for the Raspberry Silicon RP2040's PIO State Machines."
