@@ -1,11 +1,11 @@
 #[test]
 fn test_file() {
-    let p = pio_proc::pio_file!(
+    let p = pio::pio_file!(
         "./tests/test.pio",
         select_program("test2"),
         options(max_program_size = 32)
     );
-    let p2 = pio_proc::pio_file!(
+    let p2 = pio::pio_file!(
         "./tests/test.pio",
         select_program("test"),
         options(max_program_size = 32)
@@ -27,7 +27,7 @@ fn test_file() {
 
 #[test]
 fn test_pio_proc() {
-    let p = pio_proc::pio_asm!("label:", "jmp label", options(max_program_size = 1));
+    let p = pio::pio_asm!("label:", "jmp label", options(max_program_size = 1));
     assert_eq!(p.program.origin, None);
     assert_eq!(&*p.program.code, &[0u16]);
     assert_eq!(
@@ -41,7 +41,7 @@ fn test_pio_proc() {
 
 #[test]
 fn test_pio_proc2() {
-    let p = pio_proc::pio_asm!(
+    let p = pio::pio_asm!(
         ".origin 5",
         "public label:",
         "    .wrap_target",
@@ -67,21 +67,21 @@ fn test_pio_proc2() {
 #[test]
 fn test_pio_proc_size() {
     // Inline constant size
-    pio_proc::pio_asm!("label:", "jmp label", options(max_program_size = 32));
+    pio::pio_asm!("label:", "jmp label", options(max_program_size = 32));
 
     // Constant variable
     const PROGRAM_SIZE: usize = 32;
-    pio_proc::pio_asm!(
+    pio::pio_asm!(
         "label:",
         "jmp label",
         options(max_program_size = PROGRAM_SIZE)
     );
 
     // Expression
-    pio_proc::pio_asm!("label:", "jmp label", options(max_program_size = 10 + 20));
+    pio::pio_asm!("label:", "jmp label", options(max_program_size = 10 + 20));
 
     // Constant from another crate
-    pio_proc::pio_asm!(
+    pio::pio_asm!(
         "label:",
         "jmp label",
         options(max_program_size = pio::RP2040_MAX_PROGRAM_SIZE)
@@ -90,25 +90,25 @@ fn test_pio_proc_size() {
 
 #[test]
 fn test_case() {
-    let p_test = pio_proc::pio_file!(
+    let p_test = pio::pio_file!(
         "./tests/case_test.pio",
         select_program("variable_case"),
         options(max_program_size = 32)
     );
 
-    let p_ref = pio_proc::pio_file!(
+    let p_ref = pio::pio_file!(
         "./tests/case_test.pio",
         select_program("case_reference"),
         options(max_program_size = 32)
     );
 
-    let p_test_side = pio_proc::pio_file!(
+    let p_test_side = pio::pio_file!(
         "./tests/case_test.pio",
         select_program("variable_case_side_ref"),
         options(max_program_size = 32)
     );
 
-    let p_ref_side = pio_proc::pio_file!(
+    let p_ref_side = pio::pio_file!(
         "./tests/case_test.pio",
         select_program("variable_case_side"),
         options(max_program_size = 32)

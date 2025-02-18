@@ -25,8 +25,9 @@ benefits are:
 
 * It's easier to integrate into an Embedded Rust program for the RP2040 than
   `pioasm`
-* The compiler itself can be included in your Embedded Rust program, so you can
-  compile PIO code on the RP2040, at run-time!
+* It provides a `pio_asm!` macro that can assemble PIO at compile-time.
+* The compiler itself can be included in your Embedded Rust program as a library,
+  so you can compile PIO code on the RP2040, at run-time!
 * Writing an assembler was a good way to test our understanding of the
   specification.
 * It's written in Rust :)
@@ -46,16 +47,13 @@ Your `Cargo.toml` file should include:
 
 ```toml
 [dependencies]
-pio-proc = "0.2"
 pio = "0.2"
 ```
 
 Your Rust program should contain your PIO program, as follows with PIO asm directly in the file:
 
 ```rust
-use pio_proc::pio_asm;
-
-let program_with_defines = pio_proc::pio_asm!(
+let program_with_defines = pio::pio_asm!(
     "set pindirs, 1",
     ".wrap_target",
     "set pins, 0 [31]",
@@ -69,9 +67,7 @@ let program = program_with_defines.program;
 Or you can assemble a stand-alone PIO file from disk:
 
 ```rust
-use pio_proc::pio_file;
-
-let program_with_defines = pio_proc::pio_file!(
+let program_with_defines = pio::pio_file!(
     "./tests/test.pio",
     select_program("test"), // Optional if only one program in the file
     options(max_program_size = 32) // Optional, defaults to 32

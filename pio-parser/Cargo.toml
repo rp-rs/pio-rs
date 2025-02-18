@@ -10,7 +10,7 @@ repository = "https://github.com/rp-rs/pio-rs"
 
 [dependencies]
 lalrpop-util = { version = "0.22.0", features = ["lexer"] }
-pio = { path = "..", version = "0.2.1" }
+pio-core = { path = "../pio-core", version = "0.2.2" }
 
 [build-dependencies]
 lalrpop = "0.22.0"

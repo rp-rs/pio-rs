@@ -9,15 +9,13 @@ description = "Support for the Raspberry Silicon RP2040's PIO State Machines."
 repository = "https://github.com/rp-rs/pio-rs"
 
 [workspace]
-members = ["pio-proc", "pio-parser"]
+members = ["pio-proc", "pio-parser", "pio-core"]
 
 [dependencies]
-arrayvec = { version = "0.7", default-features = false }
-paste = "1.0"
-num_enum = { version = "0.7", default-features = false }
+pio-core = { path = "./pio-core" }
+pio-proc = { path = "./pio-proc" }
 
 [dev-dependencies]
 test-generator = "0.3.0"
 pretty_assertions = "1.4"
-pio-proc = { path = "./pio-proc" }
 pio-parser = { path = "./pio-parser" }

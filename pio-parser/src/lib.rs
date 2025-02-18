@@ -3,7 +3,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::upper_case_acronyms)]
 
-use pio::{
+use pio_core::{
     InSource, Instruction, InstructionOperands, IrqIndexMode, JmpCondition, MovDestination,
     MovOperation, MovRxIndex, MovSource, OutDestination, ProgramWithDefines, SetDestination,
     WaitSource,
@@ -460,7 +460,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
             }
         }
 
-        let mut a = pio::Assembler::new_with_side_set(pio::SideSet::new(
+        let mut a = pio_core::Assembler::new_with_side_set(pio_core::SideSet::new(
             side_set_opt,
             side_set_size,
             side_set_pindirs,
@@ -477,7 +477,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
         let program = a.assemble_program().set_origin(origin);
 
         let program = match (wrap, wrap_target) {
-            (Some(wrap_source), Some(wrap_target)) => program.set_wrap(pio::Wrap {
+            (Some(wrap_source), Some(wrap_target)) => program.set_wrap(pio_core::Wrap {
                 source: wrap_source,
                 target: wrap_target,
             }),
@@ -518,7 +518,7 @@ fn test() {
     assert_eq!(p.program.origin, None);
     assert_eq!(
         p.program.wrap,
-        pio::Wrap {
+        pio_core::Wrap {
             source: 2,
             target: 0,
         }
@@ -553,7 +553,7 @@ fn test_rp2350() {
     assert_eq!(p.program.origin, None);
     assert_eq!(
         p.program.wrap,
-        pio::Wrap {
+        pio_core::Wrap {
             source: 4,
             target: 0,
         }
@@ -589,7 +589,7 @@ fn test_side_set() {
     assert_eq!(p.program.origin, Some(5));
     assert_eq!(
         p.program.wrap,
-        pio::Wrap {
+        pio_core::Wrap {
             source: 1,
             target: 1,
         }

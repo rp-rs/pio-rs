@@ -17,6 +17,6 @@ proc-macro-error2 = "2.0"
 syn = "2.0"
 quote = "1.0"
 codespan-reporting = "0.11"
-pio = { path = "..", version = "0.2.0" }
+pio-core = { path = "../pio-core", version = "0.2.0" }
 pio-parser = { path = "../pio-parser", version = "0.2.0" }
 lalrpop-util = "0.22.0"

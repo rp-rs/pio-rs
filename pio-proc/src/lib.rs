@@ -1,3 +1,6 @@
+//! This crate is an implementation detail, you must not use it directly.
+//! Use the [`pio`](https://crates.io/crates/pio) crate instead.
+
 use lalrpop_util::ParseError;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -118,6 +121,7 @@ impl syn::parse::Parse for SelectProgram {
 }
 
 struct PioFileMacroArgs {
+    krate: Ident,
     max_program_size: Expr,
     program: String,
     program_name: Option<(String, LitStr)>,
@@ -126,6 +130,9 @@ struct PioFileMacroArgs {
 
 impl syn::parse::Parse for PioFileMacroArgs {
     fn parse(stream: syn::parse::ParseStream) -> syn::parse::Result<Self> {
+        let krate: Ident = stream.parse()?;
+        let _comma: Option<Token![,]> = stream.parse()?;
+
         let mut program = String::new();
         let mut file_path = PathBuf::new();
 
@@ -204,6 +211,7 @@ impl syn::parse::Parse for PioFileMacroArgs {
         let max_program_size = options.get_max_program_size_or_default()?;
 
         Ok(Self {
+            krate,
             program_name: select_program.map(|v| (v.name, v.ident)),
             max_program_size,
             program,
@@ -213,12 +221,16 @@ impl syn::parse::Parse for PioFileMacroArgs {
 }
 
 struct PioAsmMacroArgs {
+    krate: Ident,
     max_program_size: Expr,
     program: String,
 }
 
 impl syn::parse::Parse for PioAsmMacroArgs {
     fn parse(stream: syn::parse::ParseStream) -> syn::parse::Result<Self> {
+        let krate: Ident = stream.parse()?;
+        let _comma: Option<Token![,]> = stream.parse()?;
+
         let mut program = String::new();
 
         // Parse the list of instructions
@@ -250,6 +262,7 @@ impl syn::parse::Parse for PioAsmMacroArgs {
         let max_program_size = options.get_max_program_size_or_default()?;
 
         Ok(Self {
+            krate,
             max_program_size,
             program,
         })
@@ -258,7 +271,7 @@ impl syn::parse::Parse for PioAsmMacroArgs {
 
 #[proc_macro]
 #[proc_macro_error]
-pub fn pio_file(item: TokenStream) -> TokenStream {
+pub fn pio_file_inner(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioFileMacroArgs);
     let parsed_programs = pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_file(&args.program);
     let program = match &parsed_programs {
@@ -285,6 +298,7 @@ pub fn pio_file(item: TokenStream) -> TokenStream {
     };
 
     to_codegen(
+        args.krate,
         program,
         args.max_program_size,
         Some(
@@ -300,7 +314,7 @@ pub fn pio_file(item: TokenStream) -> TokenStream {
 /// A macro which invokes the PIO assembler at compile time.
 #[proc_macro]
 #[proc_macro_error]
-pub fn pio_asm(item: TokenStream) -> TokenStream {
+pub fn pio_asm_inner(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioAsmMacroArgs);
 
     let parsed_program = pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_program(&args.program);
@@ -310,15 +324,16 @@ pub fn pio_asm(item: TokenStream) -> TokenStream {
         Err(e) => return parse_error(e, &args.program).into(),
     };
 
-    to_codegen(program, args.max_program_size, None).into()
+    to_codegen(args.krate, program, args.max_program_size, None).into()
 }
 
 fn to_codegen(
-    program: &pio::ProgramWithDefines<HashMap<String, i32>, { MAX_PROGRAM_SIZE }>,
+    krate: Ident,
+    program: &pio_core::ProgramWithDefines<HashMap<String, i32>, { MAX_PROGRAM_SIZE }>,
     max_program_size: Expr,
     file: Option<String>,
 ) -> proc_macro2::TokenStream {
-    let pio::ProgramWithDefines {
+    let pio_core::ProgramWithDefines {
         program,
         public_defines,
     } = program;
@@ -338,64 +353,53 @@ fn to_codegen(
         }
     }
 
-    let origin: proc_macro2::TokenStream = format!("{:?}", program.origin).parse().unwrap();
+    let origin = if let Some(origin) = program.origin {
+        quote!(Some(#origin))
+    } else {
+        quote!(None)
+    };
 
-    let code: proc_macro2::TokenStream = format!(
-        "::core::iter::IntoIterator::into_iter([{}]).collect()",
-        program
-            .code
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<String>>()
-            .join(",")
-    )
-    .parse()
-    .unwrap();
-    let wrap: proc_macro2::TokenStream = format!(
-        "::pio::Wrap {{source: {}, target: {}}}",
-        program.wrap.source, program.wrap.target
-    )
-    .parse()
-    .unwrap();
-    let side_set: proc_macro2::TokenStream = format!(
-        "::pio::SideSet::new_from_proc_macro({}, {}, {})",
-        program.side_set.optional(),
-        program.side_set.bits(),
-        program.side_set.pindirs()
-    )
-    .parse()
-    .unwrap();
-    let version: proc_macro2::TokenStream = format!("::pio::PioVersion::{:?}", program.version)
-        .parse()
-        .unwrap();
-    let defines_struct: proc_macro2::TokenStream = format!(
-        "
-            struct ExpandedDefines {{
-                {}
-            }}
-            ",
-        public_defines
-            .keys()
-            .map(|k| format!("{}: i32,", k))
-            .collect::<Vec<String>>()
-            .join("\n")
-    )
-    .parse()
-    .unwrap();
-    let defines_init: proc_macro2::TokenStream = format!(
-        "
-            ExpandedDefines {{
-                {}
-            }}
-            ",
-        public_defines
-            .iter()
-            .map(|(k, v)| format!("{}: {},", k, v))
-            .collect::<Vec<String>>()
-            .join("\n")
-    )
-    .parse()
-    .unwrap();
+    let code = &program.code;
+    let code = quote!(
+        ::core::iter::IntoIterator::into_iter([#(#code),*]).collect()
+    );
+
+    let wrap_source = program.wrap.source;
+    let wrap_target = program.wrap.target;
+    let wrap = quote!(
+        #krate::Wrap {source: #wrap_source, target: #wrap_target}
+    );
+
+    let side_set_optional = program.side_set.optional();
+    let side_set_bits = program.side_set.bits();
+    let side_set_pindirs = program.side_set.pindirs();
+    let side_set = quote!(
+        #krate::SideSet::new_from_proc_macro(
+            #side_set_optional,
+            #side_set_bits,
+            #side_set_pindirs,
+        )
+    );
+
+    let version = Ident::new(&format!("{:?}", program.version), Span::call_site());
+    let version = quote!(#krate::PioVersion::#version);
+
+    let defines_fields = public_defines
+        .keys()
+        .map(|k| Ident::new(k, Span::call_site()))
+        .collect::<Vec<_>>();
+    let defines_values = public_defines.values();
+    let defines_struct = quote!(
+        struct ExpandedDefines {
+            #(#defines_fields: i32,)*
+        }
+    );
+    let defines_init = quote!(
+        ExpandedDefines {
+            #(#defines_fields: #defines_values,)*
+        }
+    );
+
     let program_size = max_program_size;
 
     // This makes sure the file is added to the list
@@ -411,8 +415,8 @@ fn to_codegen(
             #defines_struct
             {
                 #dummy_include;
-                ::pio::ProgramWithDefines {
-                    program: ::pio::Program::<{ #program_size }> {
+                #krate::ProgramWithDefines {
+                    program: #krate::Program::<{ #program_size }> {
                         code: #code,
                         origin: #origin,
                         wrap: #wrap,
