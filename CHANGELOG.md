@@ -5,8 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] [Crates.io](https://crates.io/crates/pio-rs/0.3.0) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.3.0)
 
+- Added support for new PIO features in RP235x chips
+- Reexport `pio_asm!` and `pio_file!` macros from the `pio` crate. You should not directly depend on `pio-proc` anymore.
+- `pio_file!` now ensures the Rust program is recompiled when the referenced PIO file is modified.
+- Added check to ensure argument for SET is not out of range.
 - Fixed encoding of IN instruction with `bit_count` == 32
 
 ## [0.2.1] [Crates.io](https://crates.io/crates/pio-rs/0.2.1) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.2.1)

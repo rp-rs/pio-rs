@@ -1,8 +1,8 @@
 [package]
 name = "pio"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["snek", "The rp-rs developers"]
-edition = "2018"
+edition = "2021"
 resolver = "2"
 license = "MIT"
 description = "Support for the Raspberry Silicon RP2040's PIO State Machines."
@@ -12,8 +12,8 @@ repository = "https://github.com/rp-rs/pio-rs"
 members = ["pio-proc", "pio-parser", "pio-core"]
 
 [dependencies]
-pio-core = { path = "./pio-core" }
-pio-proc = { path = "./pio-proc" }
+pio-core = { version = "0.3.0", path = "./pio-core" }
+pio-proc = { version = "0.3.0", path = "./pio-proc" }
 
 [dev-dependencies]
 test-generator = "0.3.0"
