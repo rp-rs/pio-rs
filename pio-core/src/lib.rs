@@ -234,7 +234,7 @@ impl InstructionOperands {
                     panic!("Index for WaitSource::IRQ should be in range 0..=7");
                 }
                 (
-                    (*polarity) << 2 | (*source as u8),
+                    ((*polarity) << 2) | (*source as u8),
                     *index | (if *relative { 0b10000 } else { 0 }),
                 )
             }
@@ -254,18 +254,18 @@ impl InstructionOperands {
                 (*destination as u8, *bit_count & 0b11111)
             }
             InstructionOperands::PUSH { if_full, block } => {
-                ((*if_full as u8) << 1 | (*block as u8), 0)
+                (((*if_full as u8) << 1) | (*block as u8), 0)
             }
             InstructionOperands::PULL { if_empty, block } => {
-                (1 << 2 | (*if_empty as u8) << 1 | (*block as u8), 0)
+                ((1 << 2) | ((*if_empty as u8) << 1) | (*block as u8), 0)
             }
             InstructionOperands::MOV {
                 destination,
                 op,
                 source,
-            } => (*destination as u8, (*op as u8) << 3 | (*source as u8)),
-            InstructionOperands::MOVTORX { fifo_index } => (0, 1 << 4 | *fifo_index as u8),
-            InstructionOperands::MOVFROMRX { fifo_index } => (0b100, 1 << 4 | *fifo_index as u8),
+            } => (*destination as u8, ((*op as u8) << 3) | (*source as u8)),
+            InstructionOperands::MOVTORX { fifo_index } => (0, (1 << 4) | *fifo_index as u8),
+            InstructionOperands::MOVFROMRX { fifo_index } => (0b100, (1 << 4) | *fifo_index as u8),
             InstructionOperands::IRQ {
                 clear,
                 wait,
@@ -276,8 +276,8 @@ impl InstructionOperands {
                     panic!("invalid interrupt flags");
                 }
                 (
-                    (*clear as u8) << 1 | (*wait as u8),
-                    *index | (*index_mode as u8) << 3,
+                    ((*clear as u8) << 1) | (*wait as u8),
+                    *index | ((*index_mode as u8) << 3),
                 )
             }
             InstructionOperands::SET { destination, data } => {
