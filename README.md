@@ -4,9 +4,15 @@ Support for the Raspberry Silicon RP2040's *PIO* State Machines.
 
 ## What is PIO?
 
-See https://www.raspberrypi.com/news/what-is-pio/. You can also read the PIO
-section in the (very well written) RP2040 datasheet:
-https://datasheets.raspberrypi.org/rp2040/rp2040-datasheet.pdf.
+PIO is a synchronous IO module designed to focus on macro/CISC instructions over 
+HDL. HDL is capable of portability, flexibility and performance at the cost of 
+complexity. PIO offers much of the same features in a concise and abstract manner.
+PIO is a coprocessor rather than an IO instruction or bytestream. PIO is not a HDL 
+replacement due a few limitations. PIO offers multiple IO capabilities with a 
+universal footprint. PIO provides a template for evolving IO design.
+
+You can also read the PIO section in the (very well written) 
+[RP2040 datasheet](https://datasheets.raspberrypi.org/rp2040/rp2040-datasheet.pdf).
 
 ## What is pio-rs?
 
