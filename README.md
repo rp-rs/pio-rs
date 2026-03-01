@@ -113,7 +113,7 @@ HAL](https://docs.rs/rp2040-hal/).
 
 This crate is just the PIO assembler. If you want to see some fully-featured
 PIO examples integrated with Embedded Rust on the RP2040, check out the
-[rp-hal examples](https://github.com/rp-rs/rp-hal/tree/main/rp2040-hal/examples).
+[rp-hal examples](https://github.com/rp-rs/rp-hal/tree/main/rp2040-hal-examples/src/bin).
 
 ## Roadmap
 
