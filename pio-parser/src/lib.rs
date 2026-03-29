@@ -181,7 +181,7 @@ pub(crate) enum ParsedOperands<'input> {
         polarity: Value<'input>,
         source: WaitSource,
         index: Value<'input>,
-        relative: bool,
+        index_mode: Option<IrqIndexMode>,
     },
     IN {
         source: InSource,
@@ -227,12 +227,12 @@ impl ParsedOperands<'_> {
                 polarity,
                 source,
                 index,
-                relative,
+                index_mode,
             } => InstructionOperands::WAIT {
                 polarity: polarity.reify(state) as u8,
                 source: *source,
                 index: index.reify(state) as u8,
-                relative: *relative,
+                index_mode: *index_mode,
             },
             ParsedOperands::IN { source, bit_count } => InstructionOperands::IN {
                 source: *source,
