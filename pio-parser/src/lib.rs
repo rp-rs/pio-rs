@@ -172,6 +172,19 @@ impl From<ParsedMovSource> for MovSrcInternal {
 }
 
 #[derive(Debug)]
+pub(crate) enum ParsedWaitSource<'input> {
+    Gpio(Value<'input>),
+    Pin(Value<'input>),
+    Irq {
+        index_mode: IrqIndexMode,
+        irq: Value<'input>,
+    },
+    JmpPin {
+        offset: Option<Value<'input>>,
+    },
+}
+
+#[derive(Debug)]
 pub(crate) enum ParsedOperands<'input> {
     JMP {
         condition: JmpCondition,
@@ -179,9 +192,7 @@ pub(crate) enum ParsedOperands<'input> {
     },
     WAIT {
         polarity: Value<'input>,
-        source: WaitSource,
-        index: Value<'input>,
-        relative: bool,
+        source: ParsedWaitSource<'input>,
     },
     IN {
         source: InSource,
@@ -223,16 +234,19 @@ impl ParsedOperands<'_> {
                 condition: *condition,
                 address: address.reify(state) as u8,
             },
-            ParsedOperands::WAIT {
-                polarity,
-                source,
-                index,
-                relative,
-            } => InstructionOperands::WAIT {
+            ParsedOperands::WAIT { polarity, source } => InstructionOperands::WAIT {
                 polarity: polarity.reify(state) as u8,
-                source: *source,
-                index: index.reify(state) as u8,
-                relative: *relative,
+                source: match source {
+                    ParsedWaitSource::Gpio(v) => WaitSource::Gpio(v.reify(state) as u8),
+                    ParsedWaitSource::Pin(v) => WaitSource::Pin(v.reify(state) as u8),
+                    ParsedWaitSource::Irq { index_mode, irq } => WaitSource::Irq {
+                        index_mode: *index_mode,
+                        irq: irq.reify(state) as u8,
+                    },
+                    ParsedWaitSource::JmpPin { offset } => WaitSource::JmpPin {
+                        offset: offset.as_ref().map(|o| o.reify(state) as u8),
+                    },
+                },
             },
             ParsedOperands::IN { source, bit_count } => InstructionOperands::IN {
                 source: *source,
@@ -353,8 +367,10 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
     /// separated by `.program` directives.
     pub fn parse_file(
         source: &str,
-    ) -> Result<HashMap<String, ProgramWithDefines<HashMap<String, i32>, PROGRAM_SIZE>>, ParseError>
-    {
+    ) -> Result<
+        HashMap<String, ProgramWithDefines<HashMap<String, i32>, PROGRAM_SIZE>>,
+        ParseError<'_>,
+    > {
         match parser::FileParser::new().parse(source) {
             Ok(f) => {
                 let mut state = FileState::default();
@@ -390,7 +406,7 @@ impl<const PROGRAM_SIZE: usize> Parser<PROGRAM_SIZE> {
     /// Parse a single PIO program, without the `.program` directive.
     pub fn parse_program(
         source: &str,
-    ) -> Result<ProgramWithDefines<HashMap<String, i32>, PROGRAM_SIZE>, ParseError> {
+    ) -> Result<ProgramWithDefines<HashMap<String, i32>, PROGRAM_SIZE>, ParseError<'_>> {
         match parser::ProgramParser::new().parse(source) {
             Ok(p) => Ok(Parser::process(&p, &mut FileState::default())),
             Err(e) => Err(e),

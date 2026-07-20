@@ -1,0 +1,13 @@
+.program rmii_rx
+.wrap_target
+    // Wait for CRS_DV assertion (up-FLANK)
+    wait 0 JMPPIN       ; wait for CRS = LOW
+    wait 1 JMPPIN       ; wait for CRS = HIGH
+    // Wait for Start of Frame Delimiter, align to sample clk (up-Flank)
+    wait 1 PIN 1 [1]    ; wait for RX1 = HIGH
+sample:
+    in PINS 2           ; READ [RX0, RX1] and autopush or stall
+    jmp PIN sample      ; jmp sample if CRS = HIGH
+    mov ISR null        ; Clear ISR
+    irq wait 0          ; call read interrupt
+.wrap

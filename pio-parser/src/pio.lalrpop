@@ -20,6 +20,7 @@ use crate::{
   ParsedOperands,
   ParsedMovSource,
   ParsedMovDestination,
+  ParsedWaitSource
 };
 
 grammar();
@@ -154,11 +155,9 @@ BaseInstruction: ParsedOperands<'input> = {
     },
     address: e,
   },
-  "wait" <p:Value> <s:WaitSource> ","? <i:Value> <r:"rel"?> => ParsedOperands::WAIT {
+  "wait" <p:Value> <s:ParsedWaitSource> => ParsedOperands::WAIT {
     polarity: p,
     source: s,
-    index: i,
-    relative: r.is_some(),
   },
   "in" <s:InSource> ","? <b:Value> => ParsedOperands::IN {
     source: s,
@@ -221,12 +220,20 @@ JmpCondition: JmpCondition = {
   "!" "osre" => JmpCondition::OutputShiftRegisterNotEmpty,
 };
 
-WaitSource: WaitSource = {
-  "gpio" => WaitSource::GPIO,
-  "pin" => WaitSource::PIN,
-  "irq" => WaitSource::IRQ,
-  "jmppin" => WaitSource::JMPPIN,
+ParsedWaitSource: ParsedWaitSource<'input> = {
+  "gpio" ","? <gpio:Value> => ParsedWaitSource::Gpio(gpio),
+  "pin" ","? <pin:Value> => ParsedWaitSource::Pin(pin),
+  "irq" ","? <index_mode:IrqIndexMode?> <irq:Value> <relative:"rel"?> =>
+      ParsedWaitSource::Irq {
+          index_mode: if relative.is_some() { IrqIndexMode::REL } else { index_mode.unwrap_or(IrqIndexMode::DIRECT) },
+          irq: irq,
+      },
+  "jmppin" ","? <offset:("+" <Value>)?> =>
+      ParsedWaitSource::JmpPin {
+          offset,
+      },
 };
+
 
 InSource: InSource = {
   "pins" => InSource::PINS,
