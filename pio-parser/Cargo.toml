@@ -9,8 +9,8 @@ license = "MIT"
 repository = "https://github.com/rp-rs/pio-rs"
 
 [dependencies]
-lalrpop-util = { version = "0.22.0", features = ["lexer"] }
+lalrpop-util = { version = "0.22.0", default-features = false, features = ["lexer", "unicode"] }
 pio-core = { path = "../pio-core", version = "0.3.0" }
 
 [build-dependencies]
-lalrpop = "0.22.0"
+lalrpop = { version = "0.22.0", default-features = false, features = ["unicode", "lexer"]}
