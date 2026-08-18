@@ -517,7 +517,7 @@ impl SideSet {
     }
 
     #[doc(hidden)]
-    pub fn new_from_proc_macro(opt: bool, bits: u8, pindirs: bool) -> SideSet {
+    pub const fn new_from_proc_macro(opt: bool, bits: u8, pindirs: bool) -> SideSet {
         SideSet {
             opt,
             bits,
