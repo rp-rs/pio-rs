@@ -868,12 +868,12 @@ pub struct Wrap {
 /// The program can be shorter than the maximum length (N). The array dereferences
 /// to a slice of the proper length (equal to the length of the original slice).
 #[derive(Debug)]
-pub struct Array<T: Copy, const N: usize> {
+pub struct Array<T: Default + Copy, const N: usize> {
     data: [T; N],
     len: usize,
 }
 
-impl<T: Copy, const N: usize> Array<T, N> {
+impl<T: Default + Copy, const N: usize> Array<T, N> {
     /// Create a new array from a slice
     ///
     /// Panics if data.len() > N.
@@ -896,7 +896,25 @@ impl<T: Copy, const N: usize> Array<T, N> {
     }
 }
 
-impl<T: Copy, const N: usize> core::ops::Deref for Array<T, N> {
+impl<T: Default + Copy, const N: usize> FromIterator<T> for Array<T, N> {
+    /// Construct an array from an iterator
+    ///
+    /// Panics if the iterator yields more than N elements.
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut array = [Default::default(); N];
+        let mut len = 0;
+        for item in iter.into_iter() {
+            if len >= N {
+                panic!("Iterator has more elements than the array can hold");
+            }
+            array[len] = item;
+            len += 1;
+        }
+        Self { data: array, len }
+    }
+}
+
+impl<T: Default + Copy, const N: usize> core::ops::Deref for Array<T, N> {
     type Target = [T];
     fn deref(&self) -> &Self::Target {
         &self.data[..self.len]
