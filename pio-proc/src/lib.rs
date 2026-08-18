@@ -361,7 +361,7 @@ fn to_codegen(
 
     let code = &program.code;
     let code = quote!(
-        ::core::iter::IntoIterator::into_iter([#(#code),*]).collect()
+        #krate::Array::from_slice(&[#(#code),*])
     );
 
     let wrap_source = program.wrap.source;
