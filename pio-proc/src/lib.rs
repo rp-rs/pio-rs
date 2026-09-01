@@ -4,7 +4,6 @@
 use lalrpop_util::ParseError;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use proc_macro_error2::{abort, abort_call_site, proc_macro_error};
 use quote::quote;
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -19,6 +18,18 @@ use syn::{
 /// As the program size is limited to 32 instructions on the currently available hardware as of 2021, 1024 instructions
 /// should be plenty for a while.
 const MAX_PROGRAM_SIZE: usize = 1024;
+
+fn error_spanned(tokens: impl quote::ToTokens, message: &str) -> TokenStream {
+    parse::Error::new_spanned(tokens, message)
+        .to_compile_error()
+        .into()
+}
+
+fn error_call_site(message: &str) -> TokenStream {
+    parse::Error::new(Span::call_site(), message)
+        .to_compile_error()
+        .into()
+}
 
 struct OptionsArgs {
     ident: Ident,
@@ -47,11 +58,10 @@ impl Options {
 
         for (name, (id, _)) in &self.options {
             if !valid_identifiers.contains(&name.as_str()) {
-                abort!(
-                    id,
-                    "unknown identifier, expected one of {:?}",
-                    valid_identifiers
-                );
+                return Err(parse::Error::new(
+                    id.span(),
+                    format!("unknown identifier, expected one of {valid_identifiers:?}"),
+                ));
             }
         }
 
@@ -148,7 +158,10 @@ impl syn::parse::Parse for PioFileMacroArgs {
                     if let Some(crate_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
                         p.push(crate_dir);
                     } else {
-                        abort!(s, "Cannot find 'CARGO_MANIFEST_DIR' environment variable");
+                        return Err(parse::Error::new_spanned(
+                            &s,
+                            "Cannot find 'CARGO_MANIFEST_DIR' environment variable",
+                        ));
                     }
                 }
 
@@ -158,7 +171,10 @@ impl syn::parse::Parse for PioFileMacroArgs {
             };
 
             if !pathbuf.exists() {
-                abort!(s, "the file '{}' does not exist", pathbuf.display());
+                return Err(parse::Error::new_spanned(
+                    &s,
+                    format!("the file '{}' does not exist", pathbuf.display()),
+                ));
             }
 
             file_path = pathbuf.to_owned();
@@ -167,11 +183,17 @@ impl syn::parse::Parse for PioFileMacroArgs {
                 Ok(content) => match std::str::from_utf8(&content) {
                     Ok(prog) => program = prog.to_string(),
                     Err(e) => {
-                        abort!(s, "could parse file: '{}'", e);
+                        return Err(parse::Error::new_spanned(
+                            &s,
+                            format!("could not parse file: '{e}'"),
+                        ));
                     }
                 },
                 Err(e) => {
-                    abort!(s, "could not read file: '{}'", e);
+                    return Err(parse::Error::new_spanned(
+                        &s,
+                        format!("could not read file: '{e}'"),
+                    ));
                 }
             }
 
@@ -198,13 +220,18 @@ impl syn::parse::Parse for PioFileMacroArgs {
                         options = opt;
                         let _trailing_comma: Option<Token![,]> = stream.parse().ok();
                     }
-                    _ => abort!(ident, "expected one of 'options' or 'select_program'"),
+                    _ => {
+                        return Err(parse::Error::new_spanned(
+                            ident,
+                            "expected one of 'options' or 'select_program'",
+                        ))
+                    }
                 }
             }
         }
 
         if !stream.is_empty() {
-            abort!(stream.span(), "expected end of input");
+            return Err(parse::Error::new(stream.span(), "expected end of input"));
         }
 
         // Validate options
@@ -255,7 +282,7 @@ impl syn::parse::Parse for PioAsmMacroArgs {
         }
 
         if !stream.is_empty() {
-            abort!(stream.span(), "expected end of input");
+            return Err(parse::Error::new(stream.span(), "expected end of input"));
         }
 
         // Validate options
@@ -270,7 +297,6 @@ impl syn::parse::Parse for PioAsmMacroArgs {
 }
 
 #[proc_macro]
-#[proc_macro_error]
 pub fn pio_file_inner(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioFileMacroArgs);
     let parsed_programs = pio_parser::Parser::<{ MAX_PROGRAM_SIZE }>::parse_file(&args.program);
@@ -280,16 +306,16 @@ pub fn pio_file_inner(item: TokenStream) -> TokenStream {
                 if let Some(program) = programs.get(&program_name) {
                     program
                 } else {
-                    abort! { ident, "program name not found in the provided file" }
+                    return error_spanned(ident, "program name not found in the provided file");
                 }
             } else {
                 // No name provided, check if there is only one in the map
 
                 match programs.len() {
-                    0 => abort_call_site! { "no programs in the provided file" },
+                    0 => return error_call_site("no programs in the provided file"),
                     1 => programs.iter().next().unwrap().1,
                     _ => {
-                        abort_call_site! { "more than 1 program in the provided file, select one using `select_program(\"my_program\")`" }
+                        return error_call_site("more than 1 program in the provided file, select one using `select_program(\"my_program\")`")
                     }
                 }
             }
@@ -313,7 +339,6 @@ pub fn pio_file_inner(item: TokenStream) -> TokenStream {
 
 /// A macro which invokes the PIO assembler at compile time.
 #[proc_macro]
-#[proc_macro_error]
 pub fn pio_asm_inner(item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(item as PioAsmMacroArgs);
 
@@ -344,11 +369,15 @@ fn to_codegen(
     {
         if let Ok(mps) = i.base10_parse::<usize>() {
             if program.code.len() > mps {
-                abort_call_site!(
-                    "the resulting program is larger than the maximum allowed: max = {}, size = {}",
-                    mps,
-                    program.code.len()
-                );
+                return parse::Error::new(
+                    Span::call_site(),
+                    format!(
+                        "the resulting program is larger than the maximum allowed: max = {}, size = {}",
+                        mps,
+                        program.code.len()
+                    ),
+                )
+                .to_compile_error();
             }
         }
     }
