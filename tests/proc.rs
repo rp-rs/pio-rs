@@ -117,3 +117,13 @@ fn test_case() {
     assert_eq!(&*p_test.program.code, &*p_ref.program.code);
     assert_eq!(&*p_test_side.program.code, &*p_ref_side.program.code);
 }
+
+#[allow(unused)]
+const CONST_PROGRAM: pio::Program<32> = const {
+    pio::pio_asm!(
+        ".side_set 2"
+        "set pindirs, 3 side 0b01"
+        "jmp 1 side 0b01"
+    )
+    .program
+};

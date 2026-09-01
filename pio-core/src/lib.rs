@@ -534,7 +534,7 @@ impl SideSet {
     }
 
     #[doc(hidden)]
-    pub fn new_from_proc_macro(opt: bool, bits: u8, pindirs: bool) -> SideSet {
+    pub const fn new_from_proc_macro(opt: bool, bits: u8, pindirs: bool) -> SideSet {
         SideSet {
             opt,
             bits,
@@ -649,7 +649,7 @@ impl<const PROGRAM_SIZE: usize> Assembler<PROGRAM_SIZE> {
         };
 
         Program {
-            code,
+            code: Array::from_slice(code.as_slice()),
             origin: None,
             side_set,
             wrap,
@@ -886,11 +886,69 @@ pub struct Wrap {
     pub target: u8,
 }
 
+/// Compile-time constant array for storing the program code
+///
+/// The program can be shorter than the maximum length (N). The array dereferences
+/// to a slice of the proper length (equal to the length of the original slice).
+#[derive(Debug)]
+pub struct Array<T: Default + Copy, const N: usize> {
+    data: [T; N],
+    len: usize,
+}
+
+impl<T: Default + Copy, const N: usize> Array<T, N> {
+    /// Create a new array from a slice
+    ///
+    /// Panics if data.len() > N.
+    pub const fn from_slice(data: &[T]) -> Self {
+        assert!(data.len() <= N, "Slice longer than maximum array size");
+        let mut array = [data[0]; N];
+        let (array_data, _) = array.split_at_mut(data.len());
+        array_data.copy_from_slice(data);
+        Self {
+            data: array,
+            len: data.len(),
+        }
+    }
+
+    /// Get the actual length of the stored data
+    ///
+    /// May be smaller than N.
+    pub const fn len(&self) -> usize {
+        self.len
+    }
+}
+
+impl<T: Default + Copy, const N: usize> FromIterator<T> for Array<T, N> {
+    /// Construct an array from an iterator
+    ///
+    /// Panics if the iterator yields more than N elements.
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut array = [Default::default(); N];
+        let mut len = 0;
+        for item in iter.into_iter() {
+            if len >= N {
+                panic!("Iterator has more elements than the array can hold");
+            }
+            array[len] = item;
+            len += 1;
+        }
+        Self { data: array, len }
+    }
+}
+
+impl<T: Default + Copy, const N: usize> core::ops::Deref for Array<T, N> {
+    type Target = [T];
+    fn deref(&self) -> &Self::Target {
+        &self.data[..self.len]
+    }
+}
+
 /// Program ready to be executed by PIO hardware.
 #[derive(Debug)]
 pub struct Program<const PROGRAM_SIZE: usize> {
     /// Assembled program code.
-    pub code: ArrayVec<u16, PROGRAM_SIZE>,
+    pub code: Array<u16, PROGRAM_SIZE>,
     /// Offset at which the program must be loaded.
     ///
     /// Most often 0 if defined. This might be needed when using data based `JMP`s.
