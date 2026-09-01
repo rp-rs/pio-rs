@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] [Crates.io](https://crates.io/crates/pio-rs/0.4.0) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.4.0)
+
+- Added support for the RP235x `WAIT JMPPIN` and `WAIT IRQ PREV/NEXT` instruction variants.
+- Redesigned `WaitSource` into a data-carrying enum: `Gpio(u8)`, `Pin(u8)`, `Irq { index_mode, irq }`, `JmpPin { offset }`. (Breaking change)
+- Removed the `index` and `relative` fields from `InstructionOperands::WAIT`; they are now part of `WaitSource`. `Assembler::wait` takes only `polarity` and `source`. (Breaking change)
+- Removed the `proc-macro-error2` dependency.
+- Disabled default features of `lalrpop`/`lalrpop-util`, reducing build dependencies.
+
 ## [0.3.0] [Crates.io](https://crates.io/crates/pio-rs/0.3.0) [Github](https://github.com/rp-rs/pio-rs/releases/tag/v0.3.0)
 
 - Added support for new PIO features in RP235x chips
