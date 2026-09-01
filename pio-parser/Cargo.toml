@@ -1,6 +1,6 @@
 [package]
 name = "pio-parser"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["snek", "The rp-rs Developers"]
 edition = "2021"
 resolver = "2"
@@ -10,7 +10,7 @@ repository = "https://github.com/rp-rs/pio-rs"
 
 [dependencies]
 lalrpop-util = { version = "0.22.0", default-features = false, features = ["lexer", "unicode"] }
-pio-core = { path = "../pio-core", version = "0.3.0" }
+pio-core = { path = "../pio-core", version = "0.4.0" }
 
 [build-dependencies]
 lalrpop = { version = "0.22.0", default-features = false, features = ["unicode", "lexer"]}

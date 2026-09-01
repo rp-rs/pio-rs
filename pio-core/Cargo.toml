@@ -1,6 +1,6 @@
 [package]
 name = "pio-core"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 description = "Low-level internals for RP2040's PIO State Machines. You should use the pio crate instead."
